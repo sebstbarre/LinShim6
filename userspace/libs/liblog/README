@@ -1,0 +1,230 @@
+
+liblog provides logging and debugging facilities. To use liblog,
+
+	#include <applog.h>
+
+and include -llog in your link command. You probably need to use gcc.
+
+After reading this file, the sample code in log_example.c may help with
+a concrete example.
+
+Logging
+=======
+liblog allows an application to direct logging output to either stderr
+or syslog, or turn off logging. Each logged line is formatted with a
+timestamp and application name, for example:
+
+	[Jul 22 16:35:39] myapp: open "foo" failed
+
+liblog provides the following interfaces for logging:
+
+    int applog_open(int method, char *ident);
+
+	Your application should call this function before calling any
+	other liblog functions.
+
+	method defines how liblog will output logging. It can be one of
+		L_NONE		Turn logging off
+		L_STDERR	Log to stderr
+		L_SYSLOG	Log to syslog
+
+	ident is what to print after the timestamp in each logged message.
+	Typically it is your application or library's name. It must not be
+	NULL (but it can be "").
+
+	applog_open() returns 0 on success, -1 on failure.
+
+    int applog_str2method(const char *method_str);
+
+	This converts a method string (such as "stderr" or "syslog") into
+	its corresponding integer (such as L_STDERR or L_SYSLOG). You
+	should use this function to avoid hardcoding liblog methods
+	into your application; if new methods are added in the future,
+	your code need not change.
+	If method_str is NULL or invalid, this returns L_STDERR.
+
+    const char **applog_get_methods(void);
+
+	This returns a list of strings containing valid method strings
+	(such as "stderr" or "syslog"). You should use this in usage
+	functions to avoid hardcoding liblog methods into your application.
+
+    void applog(int prio, char *format, ...);
+
+	Log a message to the facility specified in applog_open().
+	prio is a syslog level as defined in syslog.h. prio may be
+	ignored for some applog methods (such as none or stderr).
+
+Since one of the most common reasons to add logging code is probably to
+report on memory allocation failure, liblog provides the following macro:
+
+    APPLOG_NOMEM()
+
+	which expands to applog(LOG_CRIT, "%s: no memory", __FUNCTION__)
+
+Debugging
+=========
+liblog provides a number of functions to assist with debugging. These
+functions are only enabled if your application is compiled if the
+CPPFLAGS includes -DAPPLOG_DEBUG. If APPLOG_DEBUG is not set, all debugging calls
+are stripped out by the C preprocessor.
+
+Debug messages are sent to applog() with a prio of LOG_DEBUG.
+
+You can create many debug levels (currently up to 64). Each level
+contains a desription and a context. The context is typically your
+application or library name. The description will be printed after the
+context in each debugging message, and typically briefly describes the
+debugging level (for example "net", "database_glue", etc.).
+
+For each debugging level, you need a instance of a struct dlog_desc, which
+is defined as follows:
+
+    struct dlog_desc {
+	char		*desc;
+	char		*ctx;
+    };
+
+Usually you will define this at the top of the file containing the
+functions to which the debug level pertains. It is also a good idea
+to conditionally compile this is only if DEBUG is set. For example:
+
+    #ifdef DEBUG
+    static struct dlog_desc dbg_net = {
+	.desc = "net",
+	.ctx = MYAPP_CTX
+    };
+    #endif
+
+Before using the debug level, you also need to register it with
+applog_register():
+
+    int applog_register(struct dlog_desc **dbg_levels);
+
+	dbg_levels is an array of levels, and must be NULL terminated.
+	You can call applog_register() as many times as you wish. This
+	returns 0 on success, -1 on failure.
+
+Now you can use the debugging macros on this debug level:
+
+    DBG(desc, args...)
+
+	desc is the struct dlog_desc debug level to use.
+	args is one or more printf-style formatting args
+	This includes the function name in the logged message.
+
+    DBGF(desc, func, args...)
+
+	Same as DBG, except that you can specify a function name.
+
+    DBG_HEXDUMP(desc, msg, buf, len)
+
+	Dumps a hex dump.
+	desc is the struct dlog_desc debug level to use.
+	msg is a char * message to print before the hexdump
+	buf is a uint8_t * containing the bytes to be dumped
+	len is the number of bytes to dump
+
+    DBG_STACKTRACE(desc, msg)
+
+	Dumps a stack trace using backtrace() and backtrace_symbols().
+	desc is the struct dlog_desc debug level to use.
+	msg is a char * message to print before the stack trace.
+	Make sure your CFLAGS includes -rdynamic to use this functionality.
+
+The following functions are available for managing debug levels:
+
+    int applog_enable_level(const char *ctx, const char *desc);
+
+	This enables a single debug level.
+	ctx refers to the ctx in the dlog_desc.
+	desc refers to the desc in the dlog_desc.
+	Returns 0 on success, -1 if the debug level was not found.
+
+    int applog_disable_level(const char *ctx, const char *desc);
+
+	Disables a single debug level. The arguments are the same as for
+	applog_enable_level().
+
+    void applog_printlevels(void);
+
+	Prints (to stdout) a list of all debug levels. Useful for
+	allowing a user to interactively enable or disable individual
+	debug levels.
+
+    void applog_print_curlevels(void);
+
+	Prints (to stdout) a list of all enabled debug levels.
+
+    uint32_t log_all_on[];
+
+	A mask that can be used to operate on all debug levels at once.
+
+    void applog_addlevel(uint32_t *bits);
+
+	Enable one or more log levels. Really only useful to turn on all
+	debug levels with log_all_on. For example:
+
+	    applog_addlevel(log_all_on);
+
+    void applog_clearlevel(uint32_t *bits);
+
+	Disable one or more log levels. Really only useful to turn off all
+	debug levels with log_all_on. For example:
+
+	    applog_clearlevel(log_all_on);
+
+Timestamping
+============
+liblog also provides facilities for measuring wall-clock time spent
+executing code. Your CPPFLAGS must include -DLOG_TIMESTAMP.
+
+The first set of timestamp macros are meant to be limited to the scope
+of a single function. First you must define some timestamp variables
+along with the functions other variable definitions:
+
+    DEFINE_TIMESTAMP_VARS();
+
+To start measuring, call
+
+    TIMESTAMP_START();
+
+To finish measure and applog the results to LOG_INFO, call
+
+    TIMESTAMP_END(msg);
+
+	msg is a message to print before the timing information.
+
+You can also measure time outside the scope of a single function with
+
+    TIMESTAMP_START_GLOBAL(ts_gstart) and
+    TIMESTAMP_END_GLOBAL(ts_gstart, msg)
+
+You must define a struct timeval if global scope, and provide it to
+TIMESTAMP_START_GLOBAL and TIMESTAMP_END_GLOBAL.
+
+Convenience Functions
+=====================
+liblog provides the following convenience functions (perhaps really only
+useful to network developers...):
+
+    const char *mac2str(uint8_t *bytes, int len);
+    const char *mac2str_r(uint8_t *bytes, int len, char *buf);
+
+	Converts a sequence of bytes to a hex string. mac2str places
+	the string in a static buffer, while the reentrant mac2str_r
+	places the string in a user-provided buffer. The bytes are
+	displayed in MAC address format, i.e. "01:0a:02:0b...".
+	bytes is the sequence of bytes to convert.
+	len is the number of bytes to convert.
+	buf is the user-supplied buffer
+
+    int str2mac(const char *str, uint8_t *bytebuf, int *len);
+
+	Converts a hex string in MAC address format into a sequence of
+	bytes.
+	str is a string containing the hex to be converted.
+	bytebuf is a buffer provided by the caller into which the
+		converted bytes will be placed.
+	len is IN/OUT: on in, contains the length of 'str' on input; on
+		output, contains the length of bytebuf.

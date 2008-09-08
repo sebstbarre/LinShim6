@@ -1,0 +1,488 @@
+Version 0.7
+-----------
+
+***
+Major Improvements
+***
+-HBA addresses now supported. The implementation has been validated against th
+implementation of Francis Dupont. Some changes has been brought to Francis
+Dupont implementation, however, since the draft has evolved since then :
+->The multiprefix extension has now 2 bytes instead of one for both the length
+and type fields.
+->The multiprefix extension has now 4 bytes instead of two for the 
+flags/reserved fields.
+->The multiprefix extension has now a length field in bytes unit, instead
+of 8-bytes units.
+We modified Francis Dupont implementation to reflect the changes in the draft,
+then compared the results against ours. This can be verified at any moment by
+'make check'.
+
+-CGA multikey extension : It was not conformant with rfc4581 in that the 
+length field was considered the whole extension length, while rfc4581 
+specifies it as the extension length less the first four bytes (ext header).
+Note, however, that this code is not used in the current implementation, and
+is fixed for future use only. For this reason the fix has not been tested.
+
+***
+Misc changes
+***
+-added a test suite. Currently only CGA and HBA implementations are checked.
+-cga_params.c : macro DEF_CGA_PARAMS_FILE removed. We now learn the config file
+	      for CGA (and HBA) parameters from the config file cgad.conf
+-cgad_config.h : Removed some options that were related to SEND, this file
+	       is now in libcryptoshim6 (so that shim6d can access the config
+	       file of cgad)
+-shim6.c : The error message saying that the shim6d daemon is not there has now 
+	 level KERN_INFO rather than KERN_ERR.
+
+Version 0.6.2
+-------------
+
+***
+Misc. changes :
+***
+-cga.c : We previously did selective acceptation of the addresses received from
+ the peer (that is accept the verified ones, simply ignore the invalid ones).
+This was not conform to the draft : We should ignore the whole message if any
+locator is found as invalid. This is the case now.
+-cga.c : We previously considered as invalid any address that was not a CGA. 
+This was not confrom to the draft : If the ULIDs are valid CGA, and the 
+locators are part of the signature, then those locators need not be CGAs 
+themselves. They can be normal addresses (section 3, draft v10). This is the 
+case now.
+-shim6d.c : It does not require anymore that all local addresses be CGAs. It 
+	  now stores all local addresses, together with their attribute
+	  (currently CGA or normal). However, if a normal address is used by
+	  an application, The Shim6 context can still be negotiated, but only 
+	  that address can be used as a locator.
+
+***
+Bug fixes
+***
+-info_server.c : Did a segfault if we connect to it and do a cat before the context got established (gforge bug #182)
+-shim6d.c-send_i1 : Switched two instructions, (i1->R=0 is now before checksum
+computation), this previously caused the checksum to be sometimes incorrect.
+-shim6_pkt_listener.c : Replace spinlock() with spinlock_bh(). Otherwise a
+		      soft lockup could happen. (if a packet arrives and
+		      and the receiving procedure interrupts the sending 
+		      procedure, that happened to be inside the lock)
+-shim6_trigger : Replaced GFP_KERNEL with GFP_ATOMIC, because now, that
+	       function may be called from a soft irq (receiving a packet).
+	       This was responsible for a possible error :
+	       'scheduling while atomic'
+-shim6_local_out: Replaced GFP_KERNEL with GFP_ATOMIC, because we are under a
+		  spinlock.
+
+Version 0.6.1
+---------------
+
+***
+Major Improvements
+***
+-A tool called cgatool, is now part of the tarball, it allows the manual
+generation of CGAs, keys, and CGA parameters. (This tool has been integrated
+from another project : DoCoMo SEND).
+-A daemon called cgad, that auto-generates CGAs when Router Advertisements are
+received.
+-The auto-tools files (configure.ac, Makefile.am) have been improved to install
+the proper configuration files. A new key and a new set of CGA parameters is
+also generated when typing make install. This installation procedure to get 
+things work (with a patched kernel of course) is thus now :
+->./configure
+->make
+->sudo make install
+->sudo cgad
+->sudo shim6d
+
+-As a consequence of the integration of these two tools, a new division in 
+libraries has been done.
+
+
+***
+Misc. Changes
+***
+
+-info_server.c : Added the command "cat *" that dumps all contexts states, 
+	       instead one.
+-shim6_rawsocket.c : Changed the way packets are sent, so that now the 
+	outgoing interface is forced to be the one that corresponds to the 
+	source address of a packet. This is necessary to allow Shim6 to recover
+	in some cases.
+-reapd.c, send_probe : We now use the function shim6_send from shim6_rawsocket.c
+-sysctl.h : Not anymore in the patch, binary sysctl numbers for Shim6 are 
+	  now useless. The /proc/sys/net/ipv6/shim6/enabled option is still
+	  there, however.
+-shim6.c,xfrm6_mode_shim6.c : Adapted shim6_output() for kernel 2.6.24.
+
+***
+Bug fixes
+***
+
+-shim6.c and net/shim6.h : Removed all occurences of the now useless 
+	 shim6_nb_glob_locs and shim6_glob_locs_lock variables. This caused
+	 a compilation error if compiling for arch i386
+-info_server.c : Fixed a possible seg fault if no context tag was given.
+-shim6.c, shim6_add_glob_locator : The interface index of the new locator
+	  is now also communicated to user space, so that the daemon maintains
+	  coherent information about the addresses.
+
+Version 0.6
+-------------
+
+***
+Major improvements
+***
+-CGA addresses are now supported. A tool for CGA generation will be made 
+     available later. In the mean time, one can use the tool provided by DoCoMo
+     SEND to generate CGAs (see 
+     http://www.docomolabs-usa.com/lab_opensource.html)
+-A new heuristic is implemented in shim6_pkt_listener.c : A Shim6 negotiation 
+is started if one of these conditions is met : the flow exceeds 2KB, or it 
+does exist for more than one minute.
+-IDIPS support added : it is enabled with ./configure --enable-idips.
+With IDIPS support, an IDIPS request is sent right after a Shim6 context is 
+created, so that the address pair array is ordered. The current locators are 
+changed if the best one (in the sense of IDIPS) differs from the ULIDs.
+ Requests to the IDIPS server are also performed when the lifetime of the 
+IDIPS response expires, or when there is a failure.
+
+***
+Misc. changes
+***
+
+-info_server.c : new command "dump kernel contexts" and "dump kernel policies"
+-net/ipv6/Kconfig : changed IPV6 config option from tristate to bool, because 
+		  we do not support compiling as a module, yet.
+-configure script : The configure script for the daemon has been modified to 
+	   check for shim6 support in kernel headers. If Shim6 is not supported
+	   or headers not found, a message is produced to tell how to specify
+	   the correct header location.
+-Replaced implementation of shim6_get_loc_addrs() : previously it used a custom
+	  netlink message, now we use the glibc getifaddrs function. 
+	  (shim6d.c)
+-Added a -f option to shim6d, so that it can now be run in foreground
+-Implementation of Shim6 TLV options field is now in file opt.c/opt.h
+-All netlink messages daemon->kernel have been replaced by standard calls.
+-netlink messages kernel->daemon have been changed from unicast to multicast.
+-shim6.c : Removed now useless shim6_glob_locs_list
+-shim6.c : shim6_filter() : Added missing checksum verification.
+-reap.c : reap_input() : Added missing checksum verification.
+-shim6_pkt_listener.c : Removed now useless full_ctx flag in struct shim6_ctx_count.
+-xfrm_user.c : Removed now useless option XFRM_POLICY_UPD_CACHE. This was only
+	     necessary in earlier versions of the kernel.
+-opt.c : Added a check of the Critical bit when an option is not known. If the
+       bit is set, we drop the whole message, if it is not, we only drop the
+       option.
+-shim6d.c : Added support for context confusion detection (section 7.6 and 
+	  7.15)
+-shim6d.c : rcv_i1() : Now fully compliant with draft version 9, section 7.9
+-shim6d.c : RESP_NONCE_UPDATE set to SHIM6_VALIDATOR_MIN_LIFETIME. This way we 
+	  ensure that "nonces that are no older than VALIDATOR_MIN_LIFETIME 
+	  SHOULD be considered recent" (draft v9, sec. 7.13)
+-reapd.c : Only receive a probe/ka on established shim6 
+	 contexts. (it was not guaranteed before)
+-reapd.c : rcv_probe() :  The check for context found was incorrect (rctx 
+	 instead of ctx).
+
+-xfrm.c : Upon context update : The routing table is now also updated, so that
+	  we ensure that the right interface is used to send the now 
+	  translated packets. This is especially useful if an interface 
+	  physically goes down. The code adds a route to reach ULIDpeer from
+	  ULIDlocal through the same device as the one used to send packets 
+	  with the corresponding locators.
+	  
+
+***
+Bug fixes
+***
+-gen_patch.py (only in the svn): Modified so that 
+	      patch -p1 < patch_linshim6_*** now works
+	      (patch -p7 was necessary in version 0.5.1).
+-shim6d.c : rcv_i2() : If i2 triggered a shim6_ctx creation, but an error 
+	  occured later, the shim6_ctx was still there, in broken state.
+	  Now we destroy the newly created context if an error occurs.
+-shim6d.c : shim6_del_ctx : memory leak if ctx->r1_vldt was defined.
+-shim6d.c : rcv_r2 : The daemon stopped if two R2s were successively sent
+	  (because of an incorrect ASSERT). Changed to 'silently ignore', 
+	  as stated in draft proto-09, sec. 7.16
+-shim6d.c : get_locators : A parsing error (with possible seg fault) happened 
+	  if the source locator was not included in the loc. list.
+-shim6d.c : get_locators : The nb_peer_locs field was not set to 0 if the
+	  realloc failed, resulting in a possible segfault in other parts of
+	  the program.
+-shim6d.c : rcv_i2() : There was a missing 'return 0;' at the end of the 
+	  function, resulting in the failure path always being executed.
+-shim6d.c : fixed segfault in send_r1().
+-xfrm.c : parse_expire : replaced lookup_ulid(daddr,daddr) with 
+	lookup_ulid(daddr,saddr).
+-reap.c : ka_handler() : Reset of the conceptual timer (Keepalive timeout) 
+	when stopping the ka timer (Keepalive interval). Without this,
+	only one burst of keepalives is sent in case of unidirectional traffic.
+-shim6.c : Fixed memory leak in shim6_init_state() (useless memory allocation
+	 in case of context update).
+
+Version 0.5.1
+--------------
+
+-kernel patch 0.5.1-1 : Implemented function shim6_del_glob_locator
+-daemon 0.5.1-3 : Length field for locators list option does include the
+ internal padding now, to reflect the requirement from draft shim6-proto, 
+ section 5.15.2
+-daemon 0.5.1-3 : Added code for reception of i2 messages. It was lacking it 
+ previous 0.5 code.
+-daemon 0.5.1-3 : The resp. nonce secret is now changed every ten minutes. A 
+ prev_resp_secret variable keeps a backup of the previous responder secret, 
+ in order to avoid failing the negotiation after a secret change.
+-Netlink messages sent to the kernel have now the flag 
+ NLM_F_REQUEST, because without it, messages won't be read by 
+ the kernel 2.6.23.
+-The context tag generation is now randomized (all 47 bits are random).
+-Daemon : Concurrency is managed differently : All shim6 related operations are
+ done inside a single thread. If some other threads needs to run some function 
+ (timer, information server), it sends a request for execution to the main 
+ thread, through a pipe mechanism implemented in pipe.c. This makes concurrency
+ management much cleaner, without affecting really the efficiency.
+-Added a patch for Linux kernel 2.6.23
+
+
+***
+Bug fixes
+***
+
+-daemon 0.5.1-3 : It was not possible to find a matching context upon reception
+ of an R1 message. Fixed by inserting lp_peer in ctx->ls_peerp upon context
+ creation.
+-daemon 0.5.1-3 : Added a missing free (ctx->ls_peerp) in shim6_del_ctx
+-daemon 0.5.1-2 : Fixed compilation errors when LOG_EXPL_TIME option was 
+ enabled. Thanks to Martin Kulas and Aaron Kunde for their patch !
+-daemon 0.5.1-1 : Fixed a compile error :
+ undefined reference to `shim6_glob_locs_lock' 
+-daemon 0.5.1-1 : Fixed bug #167
+-Fixed Compilation error :
+ undefined reference to `shim6_glob_locs_lock' 
+-Fixed a problem that occured when option CONFIG_XFRM_MIGRATE was enabled :
+ replaced orig->ct with orig->shim6
+
+***
+Minor changes
+***
+-daemon 0.5.1-3 : Removed now useless full_ctx field in struct shim6_ctx
+
+Version 0.5
+-----------
+While 0.4.x was for the Linux Kernel 2.6.17.11, the 0.5 is for version 2.6.21.
+
+***
+Fundamental changes
+***
+
+- The xfrm API is now used in the kernel part.
+- A filter has been added in net/ipv6/raw.c, so that only shim6 control
+  messages are sent to user space.
+- shim6 control plane is now completely managed in user space.
+- cur_resp_nonce is no longer incremented at each use, but rather every 60
+  seconds. This is to take into account the update in the shim6-proto draft,
+  and simplifies the implementation.
+
+***
+Misc. changes
+***
+
+- When the hash computing fails (get_resp_hash, shim6.c), the r1 packet is not
+  sent.
+- Simplified get and set context tag by definition of get_ct and set_ct in
+  shim6__linux.h
+- Added a configuration option for shim6 debug messages.
+- Changed shim6 netlink protocol number from 19 to 20 because 19 has been
+  allocated to ECRYPTFS.
+
+
+Version 0.4.3 - most stable
+-------------
+
+This version has been run under valgrind and tested with a script that
+continuously stops the currently used path, triggering an exploration.
+
+- Randomized by +/- 20% the interval between sent probes.
+- randomized the order of address combinations : each time a new exploration
+starts, the path array (containing the address pairs) is randomized, so that
+good pairs staying at the end have a chance of being selected. (next step
+should be to support some intelligent ordering of address pairs).
+
+***
+Bug fixes
+***
+
+- A kernel freeze could occur when receiving a data packet with the reapd
+  daemon still not running. This was due to the reapd_pid variable in the
+  kernel being initialized to zero by default. But 0 is considered as being
+  the pid of the kernel, so that the kernel was sending messages to itself,
+  with a freeze as the result. This has been solved by adding some forgotten
+  checks : 
+  - shim6_del_glob_locator (shim6.c). 
+  - reap_new_daemon_ctx (reap.c)
+
+  In addition, we should refuse creating a new shim6 context if the reapd
+  daemon is not running : Added a check at the top of __init_new_ctx (shim6.c)
+
+Version 0.4.2
+-------------
+
+- Source address selection now done in user space. For the moment it still
+does a simple iteration over all possible address combinations, but at least
+this makes sure every possible path is tried when exploring.  
+- The probe
+report lists are cleared upon send timer expiry. This avoids pretending we are
+reachable through a path that has recently failed (and maybe caused the send
+timer expiry).
+
+***
+Bug fixes
+***
+
+- When a context was released, it was not removed from the hashtable (function
+  reap_release_ctx). Fixed.
+
+Version 0.4.1 
+-------------
+
+- In previous versions, a context was created when connecting to the loopback
+  address. This is not the case anymore.  
+- Changed netlink reap protocol number, NETLINK_REAP from 17 to 19.  (Because 
+  17 is now reserved inside the kernel). This makes REAP version 0.4.1 and
+  later incompatible with shim6 kernels 0.4 and earlier.
+- The information interface with the reapd daemon is not anymore a signal
+  handling procedure, but rather a telnet server. This allows test and
+  measurement programs to directly connect to the daemon, and ask for
+  information from it. 
+- in /proc/net/shim6/*, the local and peer context tags were written in
+  decimal, this could become confusing for large context tag. This is now
+  given in hexadecimal.
+- Added the possibility to manually remove a context. This makes 
+  experimentation easier. To remove a context manually, telnet to localhost
+  port 50000, then type del <context tag> to remove the corresponding
+  context from both the kernel and the daemon.
+- Also, when the program terminates (either by sigterm or sigsegv, which
+  should of course not occur, but we are still in the development step), 
+  all contexts are flushed, both in the kernel and the daemon. This is because
+  anyway if the daemon is killed one part of the context is lost, so it is
+  normal to force deletion of the other part as well.
+- The R field in probe messages is now set to 0 for every probe message (as
+  defined in the draft).
+- reap_rcv_probe, case REAP_EXPLORING : moved downward the call to
+  start_send_timer, to make sure stop_timer is correctly set to FALSE before
+  by init_probe_sending(). Failing to do this could prevent the send timer to
+  be started when an exploring probe was received while in state operational.
+- reap_random() - reapd.c : Made use of /dev/random to generate nonces. The
+  problem is that reading /dev/random may cause the program to wait during a
+  very long time (10 seconds) because of the lack of random events. This has
+  been replaced by a single read of /dev/random that determines a seed of a
+  mathematical random number generator.
+
+***
+Bug fixes
+***
+
+- fixed a segfault (in reapd) that occured when a probe report Inbound_ok or
+  operational was received without any received probe report.
+- send_handler : A race condition could occur if the send timer were expiring
+  while terminating an exploration (reap_end_explore), leading to an assertion
+  'rctx->state==REAP_OPERATIONAL' failed. This is fixed.
+- failed to check rctx!=NULL after a lookup_ct in reap_notify_in and .._out.
+  fixed.
+
+Version 0.4
+-----------
+
+- Added a documentation directory. It contains a latex document which will be
+  continuously evolving.
+
+***
+Changes to agree with the failure detection draft, version 7
+***
+- Adapted delays between sent probes : 4 probes sent every 500ms, then 
+exponential backoff until reaching a maximum inter-probe time of 60 seconds.
+- Removed option for the keepalive message.
+- state REAP_EXPLORING_OK renamed in REAP_INBOUND_OK
+- format changed for the probe messages
+- the new definition of keepalive timeout and keepalive interval is
+implemented. (the keepalive option is not #ifdef CONFIG_IPV6_SHIM6supported, however)
+
+***
+Bug fixes
+***
+
+- shim6.c, shim6_del_glob_locator : only decrement shim6_nb_glob_locs and
+increment glob_gen_nb if the locator were actually removed from the list (that
+is, the locator given as an argument was part of the list before). This bug
+was responsible for the sending of buggy locators list (produced the message
+'bad number of locators'). In some special situations, a system crash could
+even occur (because of the shim6_nb_glob_locs variable becoming negative, thus
+making memory allocation less than the necessary size).
+- reap.c : In addition to the revisions due to the move to userland, a bug has
+been fixed : When reap provided new locators (thus triggering extension header
+addition), then came back to the ulids as locators, the extension was still
+present (but useless). This is fixed.
+
+***
+Misc changes.
+***
+- shim6.c, shim6_del_glob_locators : Changed to trigger an exploration
+  immediately when an address becomes locally unavailable, for any context
+  having this address as current local locator.
+- Computation of next probe timeout moved from probe_handler() to send_probe();
+  probe burst initialization : init_probe_sending(). Thoses changes allowed to
+  reduce code repetition.
+- Common sk_buff reservation function for shim6 and reap. (also to reduce code
+  repetition)
+- struct shim6_ctx : 'int nb_peer_locs' replaced by 'u8 nb_peer_locs', because
+this is defined as an 8 bits field in the protocol message.
+- shim6.c : cleaned shim6_init function. (In case of error, everything is
+correctly undone now).
+- link local addresses removed from the set of possible locators. This is
+because there is a technical problem to solve before to use this
+correctly. Also it should be discussed whether it is really useful to solve
+the technical problem, or if it is better simply not to use link local
+addresses. The technical problem is that link local addresses have sense only
+if associated with a link. But we cannot carry link information together with
+the address in the locators list option of shim6.
+- Filenames in the /proc/net/shim6 directory are no longer memory addresses,
+but rather local context tags. This is also locally unique, clearer, and has
+the advantage to allow having the same filenames as the daemon info files 
+(in /var/run/shim6).
+
+-------------------------------------
+
+Version 0.3
+-----------
+
+- shim6.h
+  updated protocol constants to agree with draft version 6, section 14
+- reap.c
+  Adapted error interpretation in probe sending, 'network unreachable' : this
+  can occur when there is a local link failure, and should not be considered
+  an error. This is now just noticed with a printk KERN_NOTICE.
+- BUG FIX:
+  TCP MSS is now updated to take into account the shim6 payload extension
+  header. This is done by increasing the field icsk_ext_hdr_len of struct
+  inet_connection_sock by sizeof(shim6hdr_pld), which is 8 bytes.
+  The increase in done when the socket is using shim6 for the first time
+  (within shim6_translate_route). The
+  drawback is that each icsk using shim6 has 8 bytes less for the MSS, also if
+  it does not currently use the payload extension header. Nevertheless, the
+  loss in MSS is less then 1%, and it appears as the cleanest way of making
+  sure the MSS is not too large (which would be worse). The reason is that at
+  the moment we decide to add the extension header, the TCP segment is already
+  built, so we need to anticipate by reducing the MSS *before* building the
+  TCP segment. One way of doing that is to reduce the MSS, immediately when we
+  learn that shim6 is enabled for this socket.
+
+-------------------------------------
+
+Version 0.2
+-----------
+- added kconfig option for shim6. Shim6 code is now enclosed with #ifdef/#endif
+- It was before only compilable for UML, this is fixed.
+- Added a shim6 socket (similar to the icmp one).
+- registered shim6 as an inet6_protocol (like other extension headers)
+- added REAP timer information to /proc/net/shim6 entries

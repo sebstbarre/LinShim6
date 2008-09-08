@@ -1,0 +1,5 @@
+reapd 0.4
+
+      This is the first version of the daemon. Previous versions of the
+      shim6 package were in kernel space only. Documentation for the kernel
+      space part is provided with the patch.

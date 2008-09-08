@@ -1,0 +1,7 @@
+The file rfc_example.params contains the DER-encoded CGA parameters from
+rfc3972 (CGA), Appendix A: Example of CGA Generation. Using this file,
+we can reproduce the example provided in the draft (skipping the step
+of finding the modifier):
+
+# cgatool -g -D rfc_example.params -s 1 -p fe80:: -o /tmp/cga.params
+fe80::3c4a:5bf6:ffb4:ca6c
