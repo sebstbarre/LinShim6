@@ -341,7 +341,11 @@ int verify_cga_locators(struct shim6_opt* rll, struct shim6_opt* pds,
 	
 	/*First if loclist option is defined but not pds, 
 	 * then any cga is considered invalid*/
-	if (!pds) goto failed;
+	if (!pds) {
+		PDEBUG("PDS option expected, but not found "
+		       "in control packet\n");
+		goto failed;
+	}
 
 	set_loc_list_opt(&rloclist,(char*)(rll+1));
 

@@ -81,6 +81,9 @@
 /* enable use with an IDIPS server */
 #undef IDIPS
 
+/* Local state dir */
+#undef LOCALSTATE_DIR
+
 /* enable logging of exploration times inside /etc/shim6/expl.log */
 #undef LOG_EXPL_TIME
 

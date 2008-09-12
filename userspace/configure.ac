@@ -1,5 +1,5 @@
-AC_INIT([LinShim6],[0.8.2],[sebastien.barre@uclouvain.be])
-AM_INIT_AUTOMAKE(LinShim6,0.8.2)
+AC_INIT([LinShim6],[0.8.3],[sebastien.barre@uclouvain.be])
+AM_INIT_AUTOMAKE(LinShim6,0.8.3)
 AC_GNU_SOURCE
 AC_CONFIG_HEADERS([config.h])
 
@@ -149,14 +149,20 @@ if test x$ac_enable_cgacheck = xno; then
    AC_DEFINE([NO_CGA_CHECK],[1],[disable cga check])
 fi
 
-cgaconfdir=`eval echo $sysconfdir`
-case $cgaconfdir in
-     NONE/*) cgaconfdir=`echo $cgaconfdir | sed "s~NONE~$ac_default_prefix~"` ;;
-esac
-
 #Where to find the config scripts
-AC_DEFINE_UNQUOTED([CONFIG_DIR],"$cgaconfdir",
+confdirx=`eval echo $sysconfdir`
+case $confdirx in
+     NONE/*) confdirx=`echo $confdirx | sed "s~NONE~$ac_default_prefix~"` ;;
+esac
+AC_DEFINE_UNQUOTED([CONFIG_DIR],"$confdirx",
 	[Directory for configuration files])
+
+#local state dir
+localstatedirx=`eval echo $localstatedir`
+case $localstatedirx in
+     NONE/*) localstatedirx=`echo $localstatedirx | sed "s~NONE~$ac_default_prefix~"` ;;
+esac
+AC_DEFINE_UNQUOTED([LOCALSTATE_DIR],"$localstatedirx",[Local state dir])
 
 AC_CONFIG_FILES([
 	Makefile

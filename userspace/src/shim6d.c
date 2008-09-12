@@ -715,7 +715,7 @@ finish:
 	if (count==NB_PARALLEL) {
 		FILE* f;
 		int i;
-		f=fopen("/etc/shim6/i1.log", "a");
+		f=fopen(LOCALSTATE_DIR "/shim6/i1.log", "a");
 		if (!f) {
 			syslog(LOG_ERR,"open : %m\n");
 			return 0;
@@ -1198,7 +1198,7 @@ int rcv_i2(shim6hdr_i2* hdr,struct in6_addr* saddr,
 	if (count==NB_PARALLEL) {
 		FILE* f;
 		int i;
-		f=fopen("/etc/shim6/i2.log", "a");
+		f=fopen(LOCALSTATE_DIR "/shim6/i2.log", "a");
 		if (!f) {
 			syslog(LOG_ERR,"open : %m\n");
 			goto failure;

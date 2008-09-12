@@ -214,7 +214,15 @@ int add_loc_option(void)
 		need_signature=1;
 	}
 
-	if (nb_locs==1 || ctx->pds_acked) need_pds=0;
+	if (nb_locs==1) {
+		/*If only one locator is available, there is no need for
+		  loc option, pds option, nor signature option.*/
+		need_pds=0;
+		need_signature=0;
+		return 0;
+	}
+
+	if (ctx->pds_acked) need_pds=0;
 	else need_pds=1;
 
 #ifdef SHIM6EVAL
@@ -234,7 +242,9 @@ int add_loc_option(void)
 	 * add_cga_sign_option()*/
 	
 	/*If already created and valid (validity check in opt_init(),
-	  just keep the current option*/
+	  just keep the current option
+	  Note : if attack is set, the loclist is pre-generated, thus 
+	  we return here.*/
 	if (loclist.gen_nb) return opt->total_length;
 	
 	loclistp=malloc(opt->total_length);
@@ -319,12 +329,10 @@ int add_cga_sign_option()
 {
 	struct option* opt;
 	
-	ASSERT(ctx);
-	ASSERT(loclist.gen_nb);
-		
-	/*If all addresses are verified with HBA, no signature
-	  is needed*/
 	if (!need_signature) return 0;
+
+	ASSERT(ctx);
+	ASSERT(loclist.gen_nb);		
 
 	if (!pds) {
 		/*This happens only in case of sending an ur message.

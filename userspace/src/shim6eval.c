@@ -56,7 +56,7 @@ int bpipe=0; /*1 if there is a pending SIGPIPE signal*/
 static void sigterm_handler(int sig)
 {
 	syslog(LOG_INFO, "caught signal, terminating...\n");
-	unlink("/var/run/shim6d.pid");	
+	unlink(LOCALSTATE_DIR "/run/shim6d.pid");	
 	shim6_del_all_ctx();
 	/*Stopping the info server*/
 	exit_info_server();
@@ -66,7 +66,7 @@ static void sigterm_handler(int sig)
 static void sigsegv_handler(int sig)
 {
 	syslog(LOG_ERR, "segmentation fault\n");
-	unlink("/var/run/shim6d.pid");
+	unlink(LOCALSTATE_DIR "/run/shim6d.pid");
 	shim6_del_all_ctx();
 	/*Stopping the info server*/
 	exit_info_server();
@@ -300,8 +300,8 @@ int daemonize(void)
 	  file. (if not, some socket will get the file descriptor of STDOUT,
 	  with the result of the error message being printed inside an IPv6 
 	   packet...*/
-	mkdir("/etc/shim6",00750); /*Create shim6 dir if necessary*/
-	logfd=open("/etc/shim6/shim6d.log",O_WRONLY|O_CREAT|O_APPEND,00640);
+	mkdir(CONFIG_DIR "/shim6",00750); /*Create shim6 dir if necessary*/
+	logfd=open(CONFIG_DIR "/shim6/shim6d.log",O_WRONLY|O_CREAT|O_APPEND,00640);
 	if (logfd<0) {
 		syslog(LOG_ERR,"open : %m\n");
 		goto failure;
@@ -331,7 +331,7 @@ int main(int argc, char* argv[]) {
 	static unsigned char chdr[CMSG_BUF_LEN];
 	fd_set fdset; /*To listen to both the netlink and reap sockets*/
 
-	FILE* pidfile; /*file for /var/run/shim6d.pid*/
+	FILE* pidfile; /*file for ../run/shim6d.pid*/
 	int ans;
 	int pipefd; /*File descriptor for timer notification*/
 	struct addrinfo *res;
@@ -442,20 +442,21 @@ int main(int argc, char* argv[]) {
 	openlog("shim6eval",0,LOG_USER);
 	
 	
-	/*Create a shim6eval.pid entry in /var/run*/
-	pidfile = fopen("/var/run/shim6eval.pid", "w");
+	/*Create a shim6eval.pid entry in ../run*/
+	pidfile = fopen(LOCALSTATE_DIR "/run/shim6eval.pid", "w");
 	
 	if (pidfile == NULL) {
 		syslog(LOG_ERR,
-		       "Couldn't create pid file \"/var/run/shim6eval.pid\": "
+		       "Couldn't create pid file \""
+		       LOCALSTATE_DIR "/run/shim6eval.pid\": "
 		       "%m");
 	} else {
 		fprintf(pidfile, "%ld\n", (long) getpid());
 		fclose(pidfile);
 	}
 	
-	/*Create a /var/run/shim6 dir if necessary*/
-	mkdir("/var/run/shim6",00750);
+	/*Create a ../run/shim6 dir if necessary*/
+	mkdir(LOCALSTATE_DIR "/run/shim6",00750);
 	
 	/*register signal handlers*/
 	signal(SIGTERM, sigterm_handler);
