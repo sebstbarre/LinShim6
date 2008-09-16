@@ -1,5 +1,5 @@
-AC_INIT([LinShim6],[0.8.3],[sebastien.barre@uclouvain.be])
-AM_INIT_AUTOMAKE(LinShim6,0.8.3)
+AC_INIT([LinShim6],[0.8.3-th],[sebastien.barre@uclouvain.be])
+AM_INIT_AUTOMAKE(LinShim6,0.8.3-th)
 AC_GNU_SOURCE
 AC_CONFIG_HEADERS([config.h])
 
