@@ -34,17 +34,10 @@
 #include <shim6/tqueue.h>
 #include <utils/util.h>
 
-struct path {
-	struct in6_addr    src;
-	struct in6_addr    dest;
-	uint8_t            flags;
-#define PROBED 1
-};
-
 struct reap_ctx {
 	int                 state;
 
-	struct path*        path_array;
+	struct shim6_path*  path_array;
 	int                 path_array_size; /*Number of entries in the array*/
 
 	int                 cur_path_index; /*current index in path_array*/

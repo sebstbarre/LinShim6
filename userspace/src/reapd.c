@@ -227,7 +227,8 @@ static void reap_end_explore(struct reap_ctx* rctx,
 	
 	/*Update the preferred locators in the daemon/kernel context*/
 	if (addresses)
-		xfrm_update_shim6_ctx(ctx,&addresses->dest,&addresses->src);
+		xfrm_update_shim6_ctx(ctx,&addresses->dest,&addresses->src,
+				      NULL,0);
 
 #ifdef LOG_EXPL_TIME	
 failure:
@@ -265,10 +266,10 @@ void probe_handler(struct tq_elem* timer)
 /*Moves randomly each element inside path_array. The elements remain exactly
  * the same, they have just their index inside the array changed randomly
  * returns -1 in case of error, 0 in case of success*/
-void randomize_array(struct path* path_array, int size)
+void randomize_array(struct shim6_path* path_array, int size)
 {
 	int i,rand_index;
-	struct path temp;
+	struct shim6_path temp;
 
 	ASSERT(path_array!=NULL);
 
@@ -277,11 +278,11 @@ void randomize_array(struct path* path_array, int size)
 		rand_index=i+random_int()%(size-i);
 		/*swap index i and rand_index*/
 		if (rand_index!=i) {
-			memcpy(&temp,&path_array[i],sizeof(struct path));
+			memcpy(&temp,&path_array[i],sizeof(struct shim6_path));
 			memcpy(&path_array[i],&path_array[rand_index],
-			       sizeof(struct path));
+			       sizeof(struct shim6_path));
 			memcpy(&path_array[rand_index],&temp,
-			       sizeof(struct path));
+			       sizeof(struct shim6_path));
 		}
 	}
 	PDEBUG("Leaving randomize_array\n");
@@ -444,9 +445,9 @@ static void send_probe(struct reap_ctx* rctx, int isolated)
 		if (rctx->path_array[rctx->cur_path_index].flags & PROBED)
 			next_path(rctx);
 		ipv6_addr_copy(&dest_addr,
-			       &rctx->path_array[rctx->cur_path_index].dest);
+			       &rctx->path_array[rctx->cur_path_index].remote);
 		ipv6_addr_copy(&src_addr,
-			       &rctx->path_array[rctx->cur_path_index].src);
+			       &rctx->path_array[rctx->cur_path_index].local);
 		rctx->path_array[rctx->cur_path_index].flags|=PROBED;
 		
 		/*Next probe will be sent with next path in the list*/
@@ -669,7 +670,7 @@ void reap_init_explore_kern(struct nlmsghdr* nlhdr)
  */
 int fill_path_array(struct reap_ctx* rctx)
 {
-	struct path* path;
+	struct shim6_path* path;
 	int i,j;
 	struct shim6_ctx* ctx=shim6_ctx(rctx);
 	int nb_loc_locs;
@@ -685,7 +686,7 @@ int fill_path_array(struct reap_ctx* rctx)
 
 	rctx->path_array=realloc(rctx->path_array,
 				 ctx->ls_peer.size*nb_loc_locs*
-				 sizeof(struct path));
+				 sizeof(struct shim6_path));
 	locaddr_array=malloc(nb_loc_locs*sizeof(*locaddr_array));
 	
 	if (!rctx->path_array || !locaddr_array) {
@@ -701,13 +702,21 @@ int fill_path_array(struct reap_ctx* rctx)
 	path=rctx->path_array;
 	for (i=0;i<nb_loc_locs;i++)
 		for (j=0;j<ctx->ls_peer.size;j++) {
-			ipv6_addr_copy(&path->src,
+			ipv6_addr_copy(&path->local,
 				       &locaddr_array[i]);
-			PDEBUG("src:%s\n",addrtostr(&path->src));
-			ipv6_addr_copy(&path->dest,
+			PDEBUG("src:%s\n",addrtostr(&path->local));
+			ipv6_addr_copy(&path->remote,
 				       &ctx->ls_peer.psetp[j].addr);
-			PDEBUG("dest:%s\n",addrtostr(&path->dest));
+			PDEBUG("dest:%s\n",addrtostr(&path->remote));
 			path->flags=0;
+			
+			if (!ipv6_addr_equal(&ctx->ulid_local.addr, 
+					     &path->local) ||
+			    !ipv6_addr_equal(&ctx->ulid_peer,
+					     &path->remote))
+				path->flags |= SHIM6_DATA_TRANSLATE;
+			
+			
 			path++;
 		}
 

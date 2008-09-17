@@ -272,9 +272,9 @@ static void __one_state_info(int fd, struct shim6_ctx* ctx)
 
 		dprintf(fd,"Path array :\n");
 		for (i=0;i<ctx->reap.path_array_size;i++) {
-			struct path* p=&rctx->path_array[i];
-			dprintf(fd,"\tsrc : %s\n",addrtostr(&p->src));
-			dprintf(fd,"\tdest : %s\n",addrtostr(&p->dest));
+			struct shim6_path* p=&rctx->path_array[i];
+			dprintf(fd,"\tsrc : %s\n",addrtostr(&p->local));
+			dprintf(fd,"\tdest : %s\n",addrtostr(&p->remote));
 		}
 	}
 }
