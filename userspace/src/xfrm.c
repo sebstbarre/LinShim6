@@ -95,8 +95,7 @@ static int __dump_one_state(struct sockaddr_nl *who,
 		dprintf(fd,"Inbound context\n");
 		dprintf(fd,"\tULID peer in selector: %s\n",
 			addrtostr((struct in6_addr*)&sa->sel.saddr.a6));
-		dprintf(fd,"\tULID local in selector (should be "
-			":: if rewriting is enabled) : %s\n",
+		dprintf(fd,"\tULID local in selector (should be ::) : %s\n",
 			addrtostr((struct in6_addr*)&sa->sel.daddr.a6));
 		dprintf(fd,"\tULID peer in data : %s\n",
 			addrtostr(&data->paths[0].remote));

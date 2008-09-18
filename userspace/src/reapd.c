@@ -684,6 +684,16 @@ int fill_path_array(struct reap_ctx* rctx)
 	
 	if (nb_loc_locs<0) return -1;
 
+	if (ctx->ls_peer.size*nb_loc_locs > MAX_SHIM6_PATHS) {
+		syslog(LOG_ERR,"%s:More paths than supported by LinShim6,"
+		       "(max %d), please redefine MAX_SHIM6_PATHS "
+		       "($kernel_src/include/linux/shim6.h) and rebuild"
+		       " LinShim6. Alternatively you can contact the"
+		       " author to tell him why a higher value should be set"
+		       " to a higher value.", __FUNCTION__, MAX_SHIM6_PATHS);
+		exit(EXIT_FAILURE);
+	}
+
 	rctx->path_array=realloc(rctx->path_array,
 				 ctx->ls_peer.size*nb_loc_locs*
 				 sizeof(struct shim6_path));
