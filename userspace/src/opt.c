@@ -242,9 +242,7 @@ int add_loc_option(void)
 	 * add_cga_sign_option()*/
 	
 	/*If already created and valid (validity check in opt_init(),
-	  just keep the current option
-	  Note : if attack is set, the loclist is pre-generated, thus 
-	  we return here.*/
+	  just keep the current option*/
 	if (loclist.gen_nb) return opt->total_length;
 	
 	loclistp=malloc(opt->total_length);
@@ -329,6 +327,8 @@ int add_cga_sign_option()
 {
 	struct option* opt;
 	
+	/*If all addresses are verified with HBA, no signature
+	  is needed*/
 	if (!need_signature) return 0;
 
 	ASSERT(ctx);
