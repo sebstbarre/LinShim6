@@ -27,13 +27,15 @@
 int xfrm_init(void);
 int xfrm_add_shim6_ctx(const struct in6_addr* ulid_local, 
 		       const struct in6_addr* ulid_peer,
-		       __u64 ct_local, __u64 ct_peer);
+		       __u64 ct_local, __u64 ct_peer,
+		       struct shim6_path *paths, int npaths);
 int xfrm_del_shim6_ctx(const struct in6_addr* ulid_local, 
 		       const struct in6_addr* ulid_peer,
 		       __u64 ct_local, __u64 ct_peer);
 int xfrm_update_shim6_ctx(struct shim6_ctx* ctx,
 			  const struct in6_addr* new_loc_p,
-			  const struct in6_addr* new_loc_l);
+			  const struct in6_addr* new_loc_l,
+			  struct shim6_path *paths, int npaths);
 /*Dumps all kernel xfrm states to the file descriptor @fd*/
 int dump_all_kern_states(int fd, char* str);
 
