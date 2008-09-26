@@ -160,7 +160,7 @@ AC_DEFINE_UNQUOTED([CONFIG_DIR],"$confdirx",
 #local state dir
 localstatedirx=`eval echo $localstatedir`
 case $localstatedirx in
-     NONE/*) localstatedirx=`echo $localstatedirx | sed "s~NONE~$ac_default_prefix~"` ;;
+     NONE/*) localstatedirx=`echo $localstatedirx | sed "s~NONE~~"` ;;
 esac
 AC_DEFINE_UNQUOTED([LOCALSTATE_DIR],"$localstatedirx",[Local state dir])
 
