@@ -360,6 +360,44 @@ failure:
 	return -1;
 }
 
+static int write_ka_option(char* buf, struct option* opt)
+{
+	struct shim6_opt* tl;
+	struct ka_opt* v;
+	tl=(struct shim6_opt*) (buf);
+	v=(struct ka_opt*)(tl+1);
+	tl->type=htons(SHIM6_TYPEOPT_KA);
+	tl->length=htons(opt->total_length-sizeof(struct shim6_opt));
+	
+	/*Filling the option*/
+	v->reserved=0;
+	v->tka=htons(get_tsend());
+	
+	return 0;
+}
+
+/*Keepalive Timeout option*/
+int add_ka_option(void)
+{
+	struct option* opt;
+	ASSERT(ctx);
+	
+	/*If send timer is the default, the option is not
+	  necessary*/
+	if (get_tsend()==REAP_SEND_TIMEOUT) return 0;
+	
+	opt=malloc(sizeof(struct option));
+	if (!opt) goto failure;
+	list_add_tail(&opt->list,&options);
+	opt->write=write_ka_option;
+	opt->total_length=8;
+	
+	return opt->total_length;
+failure:
+	free_all();
+	return -1;
+}
+
 /*Writes every selected option (with add_xxx), and returns a pointer to the 
  * first byte following
  * the last option*/
@@ -427,11 +465,15 @@ int parse_options(struct shim6_opt* buf, char* packet_end, int msg_type,
 		case SHIM6_TYPEOPT_CGA_SIGN:
 			psd_opts[PO_SIGN]=tl;
 			break;
+		case SHIM6_TYPEOPT_KA:
+			if (opt_len!=4) break;
+			psd_opts[PO_KA]=tl;
+			break;
 		default:
 			syslog(LOG_INFO, 
 			       "%s : unknown option field"
 			       " : %d\n",__FUNCTION__,ntohs(tl->type));
-			/*draft09, sec. 5.15: if the critical bit is set, drop
+			/*draft10, sec. 5.15: if the critical bit is set, drop
 			  the whole message, if not, just drop the option.
 			  TODO : Also send an error message if the C bit is 
 			  set*/

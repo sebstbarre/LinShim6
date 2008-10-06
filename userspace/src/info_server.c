@@ -245,6 +245,10 @@ static void __one_state_info(int fd, struct shim6_ctx* ctx)
 		default:dprintf(fd,"unknown - This is a bug !\n"); break;
 		}
 		
+		dprintf(fd,"Send timeout: %f seconds\n",
+			tstodsec(rctx->send_timespec));
+		dprintf(fd,"Keepalive timeout: %d seconds\n",rctx->tka);
+		
 		dprintf(fd,"nb probes sent : %d\n",rctx->nb_probes_sent);
 		
 		list_for_each_entry(probe_node,&rctx->sent_probes,list) {
@@ -479,6 +483,37 @@ static int  __show_local_addresses(int fd, char* str)
 	return 0;
 }
 
+static int __set_tsend(int fd, char* str)
+{
+	long new;
+	char *end;
+	if (strlen(str)<11) return 0;
+	str+=10; /*Pointing to the argument*/
+	
+	new=strtol(str,&end,10);
+	
+	/*Checks for correctness*/
+	if (end==str) {
+		dprintf(fd,"Impossible to parse argument: %s\n",str);
+		return 0;
+	}
+	if (new<=0 || new>=0x0FFFF) {
+		dprintf(fd, "Out of range\n");
+		return 0;
+	}
+	
+	if (new<10) 
+		dprintf(fd,"warning:it is recommended not to set "
+			"tsend below 10 seconds\n");
+	
+	/*Setting tsend*/
+	set_tsend(new);
+	
+	dprintf(fd, "Send timeout set to %d seconds\n",(uint16_t)new);
+
+	return 0;
+}
+
 #ifdef LOG_EXPL_TIME
 static int reset_timelog(int fd, char* str)
 {
@@ -549,8 +584,9 @@ static is_cmd_t main_thr_cmds[] = {
 	  "context tag\n\tfrom kernel and daemon", 2, __state_del},
 	{ "dcp", "Dumps all CGA parameters stored in the daemon",
 	  3, __dump_cga_params},
-	{ "sla", "Show local addresses", 1, __show_local_addresses},
+	{ "sla", "Show local addresses", 2, __show_local_addresses},
 	{ "nbc", "Number of contexts", 3, __number_of_contexts},
+	{ "set tsend","Set Tsend timer",9, __set_tsend },
 };
 
 

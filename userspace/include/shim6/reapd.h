@@ -66,7 +66,7 @@ struct reap_ctx {
 	short               nb_probes_recvd;
 
 /*Timeout values (in seconds)*/
-	int                 send_timeout;
+	int                 tka; /*Keepalive timeout*/
        
 	/*recvd probes list*/
 	struct list_head    recvd_probes;
@@ -127,6 +127,10 @@ void reap_rcv_ka(struct reaphdr_ka* hdr);
  * on the currently known peer and local locators
  */
 int fill_path_array(struct reap_ctx* rctx);
+
+/*get or set the value of the send timer (in seconds)*/
+void set_tsend(uint16_t new);
+uint16_t get_tsend(void);
 
 #endif /*SHIM6_SRC*/
 

@@ -5,6 +5,7 @@ Version 0.9
 Major changes
 ***
 
+- Added support for Keepalive Timeout option
 - Added a notification (through netevent) to the TCP layer when a path
   has changed after a failure recovery, so that TCP immmediately
   retransmits, and does not wait for the end of the backoff retransmit

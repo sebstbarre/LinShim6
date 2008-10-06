@@ -348,7 +348,7 @@ int rcv_ua(shim6hdr_ur* hdr,struct in6_addr* saddr, struct in6_addr* daddr);
  * As indicated in section 5.15, we multiply by two
  * every value defined in the standard, in order to take into account
  * the C flag. (if reset : type*=2, if set, type=type*2+1)
- * by default the C flag is never set.
+ * currently the C flag is never set.
  */
 #define SHIM6_TYPEOPT_VALIDATOR 2
 #define SHIM6_TYPEOPT_LOC_LIST  4
@@ -357,7 +357,8 @@ int rcv_ua(shim6hdr_ur* hdr,struct in6_addr* saddr, struct in6_addr* daddr);
 #define SHIM6_TYPEOPT_CGA_SIGN  10
 #define SHIM6_TYPEOPT_ULID_PAIR 12
 #define SHIM6_TYPEOPT_FII       14
-#define SHIM6_TYPEOPT_MAXVALUE  14 /*Maximum value for the options*/
+#define SHIM6_TYPEOPT_KA        20
+#define SHIM6_TYPEOPT_MAXVALUE  20 /*Maximum value for the options*/
 
 /*Options parameters*/
 #define VAL_LENGTH 20 /*Validator length : we use sha1, which is 20 octets*/
@@ -374,13 +375,21 @@ struct shim6_opt
 };
 
 /*===============*/
-/*Specific structures for option fields
- * As option fields have variable lengths,
- * These structs ARE NOT really the packet data,
+/*Specific structures for option fields*/
+
+struct ka_opt
+{
+	uint16_t  reserved;
+	uint16_t  tka;
+};
+
+
+ 
+/* As loc option fields have variable lengths,
+ * This struct is NOT really the packet data,
  * but a set of pointers (of correct type) to that packet
  * data.
  */
-
 struct loc_list_opt
 {
 	uint32_t*             gen_nb;
@@ -467,8 +476,14 @@ int get_loc_locs_array(struct shim6_ctx* ctx, int newest,
 		       int allnonsecure, int useall_locators,
 		       int* need_signature);
 
+/**
+ * Synchronizes context @ctx with the kernel.
+ * For the moment it is only used when there is a change in Tsend or Tka 
+ * that must be reflected to the kernel.
+ * if @ctx is NULL, all contexts are synchronized
+ * if @sync_peer is true, the peer is also synchronised (by loc update)
+ */
 
-
+void sync_contexts(struct shim6_ctx* ctx, int sync_peer);
 
 #endif /*__SHIM6D_H*/
-
