@@ -66,8 +66,6 @@ struct reap_ctx {
 	short               nb_probes_recvd;
 
 /*Timeout values (in seconds)*/
-	int                 ka_timeout;
-	int                 ka_interval;
 	int                 send_timeout;
        
 	/*recvd probes list*/

@@ -753,8 +753,6 @@ void init_reap_ctx(struct reap_ctx* rctx)
 	rctx->nb_probes_sent=0;
 
 	/*Init the timeouts to default values*/
-	rctx->ka_timeout=REAP_SEND_TIMEOUT;
-	rctx->ka_interval=REAP_KA_INTERVAL;
 	rctx->send_timeout=REAP_SEND_TIMEOUT;
 
 	tssetsec(rctx->send_timespec,rctx->send_timeout);
