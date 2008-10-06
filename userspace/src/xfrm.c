@@ -648,8 +648,8 @@ int xfrm_update_shim6_ctx(struct shim6_ctx* ctx,
 	PDEBUG("%s:new_loc_l:%s",__FUNCTION__,addrtostr(new_loc_l));
 
 	/*Activate translation ?*/
-	if (ipv6_addr_equal(new_loc_p,&ctx->lp_peer) && 
-	    ipv6_addr_equal(new_loc_l,&ctx->lp_local))
+	if (ipv6_addr_equal(new_loc_p,&ctx->ulid_peer) && 
+	    ipv6_addr_equal(new_loc_l,&ctx->ulid_local.addr))
 		translate=0;
 	else {
 		translate=SHIM6_DATA_TRANSLATE;
