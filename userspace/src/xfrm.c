@@ -400,6 +400,10 @@ static void set_selector(const struct in6_addr *daddr,
 		sel->prefixlen_s = 128;
 }
 
+/* @pre : If @in6_peer/@in6_local are defined,let @paths/@npaths to NULL
+ *       The reverse is true also, those two pairs of arguments are
+ *       mutually exclusive.
+ */
 static void set_shim6_data(__u64 ct, 
 			   const struct in6_addr* in6_peer,
 			   const struct in6_addr* in6_local, 
@@ -407,6 +411,10 @@ static void set_shim6_data(__u64 ct,
 			   struct shim6_path *paths, int npaths,
 			   int path_flags)
 {
+	ASSERT((in6_peer && in6_local) || (paths && npaths));
+
+	/*This branch does not support multipath*/
+	ASSERT(!paths);
 	data->ct=ct;
 	data->flags=flags;
 	data->cur_path_idx=0; /*Not used if not doing multipath, starting
@@ -642,6 +650,12 @@ int xfrm_del_shim6_ctx(const struct in6_addr* ulid_local,
 /*Updates a shim6 ctx to reflect a locator change
  * - the kernel states are updated
  * - the locators inside the shim6_ctx are replaced with the new ones
+ * 
+ * Either specify @new_loc_p and @new_loc_l, and set @paths/@npaths to NULL
+ * or the contrary. In the first case, the current path in the kernel is
+ * replaced with the provided locator pair, in the second case the set of paths 
+ * in the kernel is replaced by the one provided, and the kernel performs
+ * path selection itself (multipath).
  */
 int xfrm_update_shim6_ctx(struct shim6_ctx* ctx,
 			  const struct in6_addr* new_loc_p,
@@ -658,9 +672,12 @@ int xfrm_update_shim6_ctx(struct shim6_ctx* ctx,
 	PDEBUG("%s:new_loc_p:%s",__FUNCTION__,addrtostr(new_loc_p));
 	PDEBUG("%s:new_loc_l:%s",__FUNCTION__,addrtostr(new_loc_l));
 
+	/*Sanity check*/
+	ASSERT((paths && npaths) || (new_loc_p && new_loc_l));
+
 	/*Activate translation ?*/
-	if (ipv6_addr_equal(new_loc_p,&ctx->ulid_peer) && 
-	    ipv6_addr_equal(new_loc_l,&ctx->ulid_local.addr))
+	if (paths || (ipv6_addr_equal(new_loc_p,&ctx->ulid_peer) && 
+		      ipv6_addr_equal(new_loc_l,&ctx->ulid_local.addr)))
 		translate=0;
 	else {
 		translate=SHIM6_DATA_TRANSLATE;
@@ -684,11 +701,13 @@ int xfrm_update_shim6_ctx(struct shim6_ctx* ctx,
 		       NULL, 0, translate);
 	xfrm_state_add(&sel,IPPROTO_SHIM6,TRUE,0,data);
 
-
+	
 	
 	/*Update the preferred locators in the daemon context*/
-	ipv6_addr_copy(&ctx->lp_local,new_loc_l);
-	ipv6_addr_copy(&ctx->lp_peer,new_loc_p);
+	if (!paths) {
+		ipv6_addr_copy(&ctx->lp_local,new_loc_l);
+		ipv6_addr_copy(&ctx->lp_peer,new_loc_p);
+	}
 
 	ctx->translate=(translate==SHIM6_DATA_TRANSLATE);
 
