@@ -28,7 +28,8 @@ int xfrm_init(void);
 int xfrm_add_shim6_ctx(const struct in6_addr* ulid_local, 
 		       const struct in6_addr* ulid_peer,
 		       __u64 ct_local, __u64 ct_peer,
-		       struct shim6_path *paths, int npaths);
+		       struct shim6_path *paths, int npaths,
+		       uint16_t tka);
 int xfrm_del_shim6_ctx(const struct in6_addr* ulid_local, 
 		       const struct in6_addr* ulid_peer,
 		       __u64 ct_local, __u64 ct_peer);

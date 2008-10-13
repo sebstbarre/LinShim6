@@ -45,6 +45,8 @@ int add_loc_option(void);
 int add_cga_pds_option(void);
 /*CGA signature option : can only be called AFTER loc and cga_pds options*/
 int add_cga_sign_option(void);
+/*Keepalive Timeout option*/
+int add_ka_option(void);
 
 /*Write all options in the packet to be sent
  *success: returns a pointer to the first byte following the last option
@@ -61,6 +63,7 @@ enum {
 	PO_LOC,
 	PO_PDS,
 	PO_SIGN,
+	PO_KA,
 	PO_MAX,
 };
 extern struct shim6_opt* psd_opts[PO_MAX];

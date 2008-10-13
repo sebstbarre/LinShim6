@@ -346,6 +346,9 @@ static int send_i2(struct shim6_ctx* ctx)
 	opts_len+=len;
 	if ((len=add_cga_sign_option())<0) return -1;
 	opts_len+=len;
+	if ((len=add_ka_option())<0) return -1;
+	opts_len+=len;
+	
 	
 	if (shim6_alloc_send(sizeof(shim6hdr_i2),opts_len,
 			     SHIM6_TYPE_I2, i2_msg,&optionsp)<0) {
@@ -432,6 +435,9 @@ static int send_ur(struct shim6_ctx* ctx, int new_request)
 	opts_len+=len;
 	if ((len=add_cga_sign_option())<0) return -1;
 	opts_len+=len;
+	if ((len=add_ka_option())<0) return -1;
+	opts_len+=len;
+
 	
 	PDEBUG("Sending update request message...\n");
 	
@@ -608,6 +614,9 @@ static inline int send_r2(__u32 nonce, struct shim6_ctx* ctx)
 	opts_len+=len;
 	if ((len=add_cga_sign_option())<0) return -1;
 	opts_len+=len;
+	if ((len=add_ka_option())<0) return -1;
+	opts_len+=len;
+
 
 
 	if (shim6_alloc_send(sizeof(shim6hdr_r2),opts_len,
@@ -1057,7 +1066,7 @@ static void shim6_established(struct shim6_ctx* ctx)
 	/*Creating a new kernel context*/
 	xfrm_add_shim6_ctx(&ctx->ulid_local.addr, &ctx->ulid_peer,
 			   ctx->ct_local,ctx->ct_peer, ctx->reap.path_array,
-			   ctx->reap.path_array_size);	
+			   ctx->reap.path_array_size,ctx->reap.tka);
 #ifdef IDIPS
 	/*Asking the idips server to sort the locator list*/
 	idips_send_request(ctx);
@@ -1086,6 +1095,7 @@ int rcv_i2(shim6hdr_i2* hdr,struct in6_addr* saddr,
 	int ans;
 	int new=FALSE; /*TRUE if this i2 triggered a context creation*/
 	shim6_loc_l* lulid_local;
+	struct ka_opt* ka;
 #ifdef LOG_RCV_I2_TIME
 	struct timespec start,stop,total_time;
 	static double time_array[NB_PARALLEL];
@@ -1159,6 +1169,12 @@ int rcv_i2(shim6hdr_i2* hdr,struct in6_addr* saddr,
 		       TOTAL_LENGTH(ntohs(psd_opts[PO_PDS]->length)));
 	}
 
+	/*ka option?*/
+	if (psd_opts[PO_KA]) {
+		ka=(struct ka_opt*)(psd_opts[PO_KA]+1);
+		ctx->reap.tka=ntohs(ka->tka);
+	}
+
 	/*We need to work on a copy of state, because it may change
 	  during the switch*/
 	state=ctx->state;
@@ -1228,6 +1244,7 @@ int rcv_r2(shim6hdr_r2* hdr,struct in6_addr* saddr,
 	/*Pointer to the first octet next the end of the packet*/
 	char* packet_end = (char*)hdr + ((hdr->common.hdrlen+1)<<3); 
 	int ans;
+	struct ka_opt* ka;
 #ifdef SHIM6EVAL	
 	struct timespec before,after;
 	clock_gettime(CLOCK_REALTIME,&before);
@@ -1313,6 +1330,14 @@ int rcv_r2(shim6hdr_r2* hdr,struct in6_addr* saddr,
 
 	if (ctx->pds_sent) ctx->pds_acked=1;
 	context_confusion(ctx);
+
+	/*ka option?*/
+	if (psd_opts[PO_KA]) {
+		ka=(struct ka_opt*)(psd_opts[PO_KA]+1);
+		ctx->reap.tka=ntohs(ka->tka);
+	}
+
+
 	shim6_established(ctx);
 
 	return 0;
@@ -1325,6 +1350,7 @@ int rcv_ur(shim6hdr_ur* hdr,struct in6_addr* saddr, struct in6_addr* daddr)
 	/*Pointer to the first octet next the end of the packet*/
 	char* packet_end = (char*)hdr + ((hdr->common.hdrlen+1)<<3); 
 	int ans;
+	struct ka_opt* ka;
 
 	PDEBUG("receiving update request message\n");
 
@@ -1364,6 +1390,12 @@ int rcv_ur(shim6hdr_ur* hdr,struct in6_addr* saddr, struct in6_addr* daddr)
 		return 0;
 	}
 
+	/*ka option?*/
+	if (psd_opts[PO_KA]) {
+		ka=(struct ka_opt*)(psd_opts[PO_KA]+1);
+		ctx->reap.tka=ntohs(ka->tka);
+		sync_contexts(ctx,0);
+	}
 
 	if (ctx->state==SHIM6_I1_SENT) return 0;
 	if (ctx->state==SHIM6_I2_SENT) 
@@ -1587,7 +1619,7 @@ static void init_ur_timer(struct shim6_ctx *ctx)
  * (note that if the new list pointer is a clone, the REAP array is 
  *  updated only when the context receives the update ack).
  * 
- * @removed_address:If not NULL, that the update is due to an address removal,
+ * @removed_address:If not NULL, then the update is due to an address removal,
  *               and the removed address is pointed to by @removed_address.
  *               If any context is found to use that address as lp_local, 
  *               A REAP exploration is immediately triggered, to 
@@ -1633,6 +1665,34 @@ static void update_contexts(struct locset* prev, struct locset* new,
 			}
 		}
 	}
+}
+
+/**
+ * Synchronizes context @ctx with the kernel.
+ * For the moment it is only used when there is a change in Tsend or Tka 
+ * that must be reflected to the kernel.
+ * if @ctx is NULL, all contexts are synchronized
+ * if @sync_peer is true, the peer is also synchronised (by loc update)
+ */
+void sync_contexts(struct shim6_ctx* ctx, int sync_peer)
+{
+	int i;
+
+	if (ctx) {
+		xfrm_update_shim6_ctx(ctx,&ctx->lp_peer, &ctx->lp_local,
+				      NULL,0);
+		tssetsec(ctx->reap.send_timespec,get_tsend());
+		if (sync_peer) send_ur(ctx,1);
+		return;
+	}
+	for (i=0;i<SHIM6_HASH_SIZE;i++)
+		list_for_each_entry(ctx,&ulid_hashtable[i],
+				    collide_ulid) {
+			xfrm_update_shim6_ctx(ctx,&ctx->lp_peer, &ctx->lp_local,
+					      NULL,0);
+			tssetsec(ctx->reap.send_timespec,get_tsend());
+			if (sync_peer) send_ur(ctx,1);
+		}
 }
 
 /*Returns a pointer to the main loc set, if it exists,
@@ -2173,6 +2233,12 @@ static struct shim6_ctx* __init_shim6_ctx(struct shim6_loc_l* ulid_local,
 	       
 	/*Timers initialization*/
 	init_timer(&ctx->retransmit_timer);
+
+	/*Set REAP tka to default value. This is the only REAP thing we need
+	 *to do now already (real REAP init is done by shim6_established()
+	 *because tka can be changed during shim6 init. (by i2 or r2)
+	 */
+	ctx->reap.tka=REAP_SEND_TIMEOUT;
 	
 	/*Insert into hashtables*/
 	

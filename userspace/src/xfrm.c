@@ -102,6 +102,8 @@ static int __dump_one_state(struct sockaddr_nl *who,
 		dprintf(fd,"\tULID local in data : %s\n",
 			addrtostr(&data->paths[0].local));
 		dprintf(fd,"\tLocal context tag : %llx\n",data->ct);
+		dprintf(fd,"\ttka: %d seconds\n",data->tka);
+		dprintf(fd,"\ttsend: %d seconds\n", data->tsend);
 	}
 	else {
 		dprintf(fd,"Outbound context\n");       
@@ -114,6 +116,8 @@ static int __dump_one_state(struct sockaddr_nl *who,
 		dprintf(fd,"\tCurrent local locator :%s\n",
 			addrtostr(&data->paths[0].local));
 		dprintf(fd,"\tPeer context tag : %llx\n",data->ct);
+		dprintf(fd,"\ttka: %d seconds\n",data->tka);
+		dprintf(fd,"\tsend: %d seconds\n", data->tsend);
 
 	}
 	dprintf(fd,"------------------------------------------\n");
@@ -400,12 +404,16 @@ static void set_selector(const struct in6_addr *daddr,
 		sel->prefixlen_s = 128;
 }
 
+/**
+ * NOTE: In this version, @paths and @npaths are simply ignored.
+ * They are provided for future use only by the multipath flavour of LinShim6.
+ */
 static void set_shim6_data(__u64 ct, 
 			   const struct in6_addr* in6_peer,
 			   const struct in6_addr* in6_local, 
 			   struct shim6_data *data, int flags,
 			   struct shim6_path *paths, int npaths,
-			   int path_flags)
+			   int path_flags, uint16_t tka)
 {
 	data->ct=ct;
 	data->flags=flags;
@@ -416,7 +424,8 @@ static void set_shim6_data(__u64 ct,
 	ipv6_addr_copy(&data->paths[0].remote,in6_peer);
 	data->paths[0].flags=path_flags;
 	data->npaths=1;
-
+	data->tka=tka;
+	data->tsend=get_tsend();
 }
 
 static void create_shim6_tmpl(struct xfrm_user_tmpl *tmpl, __u64 ct)
@@ -539,6 +548,7 @@ static int xfrm_state_add(const struct xfrm_selector *sel,
 	sa->flags = flags;
 
 	addattr_l(n, sizeof(buf), XFRMA_SHIM6,data, SHIM6_DATA_LENGTH(data));
+
 	if ((err = rtnl_xfrm_do(n, NULL)) < 0)
 		xfrm_state_dump("Failed to add state:\n",
 				n->nlmsg_flags, n->nlmsg_type, sa);
@@ -584,7 +594,7 @@ static int xfrm_state_del(int proto, const struct xfrm_selector *sel,
 int xfrm_add_shim6_ctx(const struct in6_addr* ulid_local, 
 		       const struct in6_addr* ulid_peer,
 		       __u64 ct_local, __u64 ct_peer, struct shim6_path *paths,
-		       int npaths)
+		       int npaths, uint16_t tka)
 {
 	struct xfrm_selector sel;
 	struct xfrm_user_tmpl tmpl;
@@ -598,7 +608,7 @@ int xfrm_add_shim6_ctx(const struct in6_addr* ulid_local,
 	/*outbound*/
 	create_shim6_tmpl(&tmpl,0);	
 	set_selector(ulid_peer, ulid_local, 0, 0, &sel);
-	set_shim6_data(ct_peer,ulid_peer,ulid_local,data,0,paths,npaths, 0);
+	set_shim6_data(ct_peer,ulid_peer,ulid_local,data,0,paths,npaths, 0,tka);
 	xfrm_state_add(&sel, IPPROTO_SHIM6, FALSE, 0, data);
 	xfrm_policy_add(&sel, 0, XFRM_POLICY_OUT, XFRM_POLICY_ALLOW, 
 			SHIM6_PRIO_DEFAULT, &tmpl, 1,0);
@@ -607,7 +617,7 @@ int xfrm_add_shim6_ctx(const struct in6_addr* ulid_local,
 	create_shim6_tmpl(&tmpl,ct_local);
 	set_selector(&in6addr_any, ulid_peer, 0, 0, &sel);	
 	set_shim6_data(ct_local,ulid_peer,ulid_local,data, 
-		       SHIM6_DATA_INBOUND, NULL,0, 0);
+		       SHIM6_DATA_INBOUND, NULL,0,0,tka);
 	xfrm_state_add(&sel, IPPROTO_SHIM6, FALSE, 0, data);
 	xfrm_policy_add(&sel,0,XFRM_POLICY_IN,XFRM_POLICY_ALLOW,
 			SHIM6_PRIO_DEFAULT,&tmpl,1,0);
@@ -625,14 +635,14 @@ int xfrm_del_shim6_ctx(const struct in6_addr* ulid_local,
 
 	/*outbound*/
 	set_selector(ulid_peer, ulid_local, 0, 0, &sel);
-	set_shim6_data(ct_peer,ulid_peer,ulid_local,data,0, NULL, 0, 0);
+	set_shim6_data(ct_peer,ulid_peer,ulid_local,data,0,NULL,0,0,0);
 	xfrm_state_del(IPPROTO_SHIM6, &sel, data);
 	xfrm_policy_del(&sel, XFRM_POLICY_OUT);
 	
 	/*inbound*/
 	set_selector(&in6addr_any, ulid_peer, 0, 0, &sel);	
 	set_shim6_data(ct_local,ulid_peer,ulid_local,data, SHIM6_DATA_INBOUND,
-		       NULL,0,0);
+		       NULL,0,0,0);
 	xfrm_state_del(IPPROTO_SHIM6, &sel, data);
 	xfrm_policy_del(&sel, XFRM_POLICY_IN);
 	
@@ -642,6 +652,10 @@ int xfrm_del_shim6_ctx(const struct in6_addr* ulid_local,
 /*Updates a shim6 ctx to reflect a locator change
  * - the kernel states are updated
  * - the locators inside the shim6_ctx are replaced with the new ones
+ * 
+ * NOTE: the @paths and @npaths arguments are simply ignored
+ *  in this version. They are present for future use only, but the multipath
+ *  flavour of LinShim6.
  */
 int xfrm_update_shim6_ctx(struct shim6_ctx* ctx,
 			  const struct in6_addr* new_loc_p,
@@ -659,8 +673,8 @@ int xfrm_update_shim6_ctx(struct shim6_ctx* ctx,
 	PDEBUG("%s:new_loc_l:%s",__FUNCTION__,addrtostr(new_loc_l));
 
 	/*Activate translation ?*/
-	if (ipv6_addr_equal(new_loc_p,&ctx->lp_peer) && 
-	    ipv6_addr_equal(new_loc_l,&ctx->lp_local))
+	if (ipv6_addr_equal(new_loc_p,&ctx->ulid_peer) && 
+	    ipv6_addr_equal(new_loc_l,&ctx->ulid_local.addr))
 		translate=0;
 	else {
 		translate=SHIM6_DATA_TRANSLATE;
@@ -671,7 +685,7 @@ int xfrm_update_shim6_ctx(struct shim6_ctx* ctx,
 	create_shim6_tmpl(&tmpl,0);
 	set_selector(&ctx->ulid_peer,&ctx->ulid_local.addr,0,0,&sel);
 	set_shim6_data(ctx->ct_peer,new_loc_p,new_loc_l,data, 
-		       SHIM6_DATA_UPD, paths, npaths, translate);
+		       SHIM6_DATA_UPD, paths, npaths, translate,ctx->reap.tka);
 	xfrm_state_add(&sel,IPPROTO_SHIM6,TRUE,0,data);
 	xfrm_policy_add(&sel, TRUE, XFRM_POLICY_OUT, XFRM_POLICY_ALLOW, 
 			SHIM6_PRIO_DEFAULT, &tmpl, 1,0);
@@ -681,14 +695,16 @@ int xfrm_update_shim6_ctx(struct shim6_ctx* ctx,
 	set_selector(&in6addr_any,&ctx->ulid_peer,0,0,&sel);
 	set_shim6_data(ctx->ct_local,&ctx->ulid_peer,&ctx->ulid_local.addr,
 		       data, SHIM6_DATA_INBOUND|SHIM6_DATA_UPD,
-		       NULL, 0, translate);
+		       NULL, 0, translate,ctx->reap.tka);
 	xfrm_state_add(&sel,IPPROTO_SHIM6,TRUE,0,data);
 
-
+	
 	
 	/*Update the preferred locators in the daemon context*/
-	ipv6_addr_copy(&ctx->lp_local,new_loc_l);
-	ipv6_addr_copy(&ctx->lp_peer,new_loc_p);
+	if (!paths) {
+		ipv6_addr_copy(&ctx->lp_local,new_loc_l);
+		ipv6_addr_copy(&ctx->lp_peer,new_loc_p);
+	}
 
 	ctx->translate=(translate==SHIM6_DATA_TRANSLATE);
 

@@ -86,7 +86,25 @@ static void send_probe(struct reap_ctx* rctx, int isolated);
 static void start_send_timer(struct reap_ctx* rctx, int restart);
 static void send_handler(struct tq_elem* send_timer);
 
+/*variables that can be set from the main thread, customized through 
+  info server with set command*/
+static uint16_t reap_send_timeout = REAP_SEND_TIMEOUT;
+
 /*================*/
+
+void set_tsend(uint16_t new)
+{
+	
+	if (new==reap_send_timeout) return;
+	reap_send_timeout=new;	
+
+	sync_contexts(NULL,1);
+}
+
+uint16_t get_tsend(void)
+{
+	return reap_send_timeout;
+}
 
 void reap_release_ctx(struct reap_ctx* rctx)
 {
@@ -752,12 +770,10 @@ void init_reap_ctx(struct reap_ctx* rctx)
 	INIT_LIST_HEAD(&rctx->sent_probes);
 	rctx->nb_probes_sent=0;
 
-	/*Init the timeouts to default values*/
-	rctx->ka_timeout=REAP_SEND_TIMEOUT;
-	rctx->ka_interval=REAP_KA_INTERVAL;
-	rctx->send_timeout=REAP_SEND_TIMEOUT;
-
-	tssetsec(rctx->send_timespec,rctx->send_timeout);
+	/*Init the timeouts to default values
+	  note that rctx->tka is initialized in shim6d.c,
+	  because it might be changed by I2 or R2 messages*/
+	tssetsec(rctx->send_timespec,reap_send_timeout);
 
 	rctx->path_array=NULL;
 
