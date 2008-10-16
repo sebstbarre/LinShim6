@@ -67,7 +67,7 @@ static pthread_t networkpty_thread;
 
 /**
  * @outfd is the file descriptor to which the answer must be written.
- * @str is the full command, at it was typed by the user
+ * @str is the full command, as it was typed by the user
  * @return : Always 0 except for the special 'quit' instruction, in which case
  *     it returns 1
  */
