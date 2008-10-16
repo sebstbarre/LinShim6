@@ -194,7 +194,6 @@ static void reap_end_explore(struct reap_ctx* rctx,
 	do {
 		struct timespec now;
 		struct timespec expl_time;
-		int pld_len;
 
 		/*Saving the exploration time in /etc/shim6/expl.log*/
 		fd=open("/etc/shim6/expl.log", O_WRONLY | O_CREAT | O_APPEND,
@@ -217,7 +216,7 @@ static void reap_end_explore(struct reap_ctx* rctx,
 				"Previous path available again "
 				"(previous==new)\n");
 		}
-		dprintf(fd, "time : %d seconds %d nanoseconds\n",
+		dprintf(fd, "time : %ld seconds %ld nanoseconds\n",
 			expl_time.tv_sec,
 			expl_time.tv_nsec);
 		dprintf(fd, "recvd probes : %d\n", rctx->expl_nb_rcvd_probes);

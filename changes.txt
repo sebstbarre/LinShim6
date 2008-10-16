@@ -36,6 +36,8 @@ Bug fixes
   locator was used. Fixed by simply not sending PDS option, locator
   option nor signature option in that case (they are simply not
   needed).
+- info_server.c, reapd.c: Fixed compilation errors when
+  --enable-log-expl-time was set
 
 Version 0.8.2
 --------------

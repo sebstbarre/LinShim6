@@ -482,9 +482,9 @@ static int  __show_local_addresses(int fd, char* str)
 #ifdef LOG_EXPL_TIME
 static int reset_timelog(int fd, char* str)
 {
-	int fd;
-	fd=open("/etc/shim6/expl.log", O_TRUNC);
-	close(fd);
+	int expl_fd;
+	expl_fd=open("/etc/shim6/expl.log", O_TRUNC);
+	close(expl_fd);
 	return 0;
 }
 
@@ -534,9 +534,9 @@ static is_cmd_t local_cmds[] = {
 	  dump_all_kern_policies},
 #ifdef LOG_EXPL_TIME
 	{ "reset timelog", "Reset the log file for exploration time analysis", 
-	  7, reset_timelog()},
+	  7, reset_timelog},
 	{ "get timelog", "Print the log file for exploration time analysis",
-	  5, get_timelog()},
+	  5, get_timelog},
 #endif /*LOG_EXPL_TIME*/
 };
 
