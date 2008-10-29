@@ -348,6 +348,9 @@ int main(int argc, char* argv[]) {
 			case REAP_NL_NOTIFY_OUT:
 				reap_notify_out(nlhdr);
 				break;
+			case REAP_NL_ART:
+				reap_art(nlhdr);
+				break;
 			case REAP_NL_SEND_KA:
 				reap_send_ka(nlhdr);
 				break;				 

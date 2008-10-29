@@ -518,7 +518,9 @@ static int __set_tsend(int fd, char* str)
 static int reset_timelog(int fd, char* str)
 {
 	int expl_fd;
-	expl_fd=open("/etc/shim6/expl.log", O_TRUNC);
+	expl_fd=open("/etc/shim6/expl.log", O_TRUNC);	
+	close(expl_fd);
+	expl_fd=open("/etc/shim6/art.log",O_TRUNC);
 	close(expl_fd);
 	return 0;
 }
@@ -531,7 +533,7 @@ static int get_timelog(int streamfd, char* str)
 	
 	fd=open("/etc/shim6/expl.log",O_RDONLY);
 	if (fd<0) {
-		syslog(LOG_ERR,"get_timelog, open : %m\n");
+		syslog(LOG_ERR,"%s:open : %m\n",__FUNCTION__);
 		return 0;
 	}
 
@@ -539,12 +541,12 @@ static int get_timelog(int streamfd, char* str)
 		write(streamfd,buffer,BUFFER_SIZE);
 	}
 	if (ans<0) {
-		syslog(LOG_ERR,"get_timelog, read : %m\n");
+		syslog(LOG_ERR,"%s:read : %m\n",__FUNCTION__);
 		goto failure;
 	}
 	ans=write(streamfd,buffer,ans);
 	if (ans<0) {
-		syslog(LOG_ERR,"get_timelog, write : %m\n");
+		syslog(LOG_ERR,"%s:write : %m\n",__FUNCTION__);
 		goto failure;
 	}
 	
@@ -552,6 +554,37 @@ static int get_timelog(int streamfd, char* str)
 	if (fd!=-1) close(fd);
 	return 0;
 }
+
+static int get_artlog(int streamfd, char* str)
+{
+	int fd=-1;
+	int ans;
+	char buffer[BUFFER_SIZE];
+	
+	fd=open("/etc/shim6/art.log",O_RDONLY);
+	if (fd<0) {
+		syslog(LOG_ERR,"%s:open : %m\n",__FUNCTION__);
+		return 0;
+	}
+
+	while ((ans=read(fd,buffer,BUFFER_SIZE))==BUFFER_SIZE) {
+		write(streamfd,buffer,BUFFER_SIZE);
+	}
+	if (ans<0) {
+		syslog(LOG_ERR,"%s:read : %m\n",__FUNCTION__);
+		goto failure;
+	}
+	ans=write(streamfd,buffer,ans);
+	if (ans<0) {
+		syslog(LOG_ERR,"%s:write : %m\n",__FUNCTION__);
+		goto failure;
+	}
+	
+ failure:
+	if (fd!=-1) close(fd);
+	return 0;
+}
+
 #endif
 
 /*We must declare it here, and implement it after the definition
@@ -572,6 +605,9 @@ static is_cmd_t local_cmds[] = {
 	  7, reset_timelog},
 	{ "get timelog", "Print the log file for exploration time analysis",
 	  5, get_timelog},
+	{ "get artlog", "Print the log file for App. Recovery Time analysis",
+	  5, get_artlog},
+	
 #endif /*LOG_EXPL_TIME*/
 };
 

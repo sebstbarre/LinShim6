@@ -113,6 +113,7 @@ void reap_release_ctx(struct reap_ctx* rctx);
 void reap_init_explore_kern(struct nlmsghdr* nlhdr);
 void reap_notify_in(struct nlmsghdr* nlhdr);
 void reap_notify_out(struct nlmsghdr* nlhdr);
+void reap_art(struct nlmsghdr* nlhdr);
 void reap_send_ka(struct nlmsghdr* nlhdr);
 
 /*Handlers for messages received from the nerwork*/
