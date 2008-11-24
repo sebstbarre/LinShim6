@@ -1,3 +1,4 @@
 /configure.sh
 *~
-#LinShim6-kernel
+/*.deb
+/build-um
