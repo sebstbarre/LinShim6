@@ -2,6 +2,7 @@
 
 *.o
 *.lo
+*.loT
 *.la
 Makefile
 .*

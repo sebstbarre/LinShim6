@@ -608,14 +608,14 @@ hexdump(int fd, uint8_t *b, int len, char *indent)
 {
 	int i;
 
-	if (indent) dprintf(fd,indent);
+	if (indent) write(fd,indent,strlen(indent));
 	for (i = 0; i < len; i++) {
 		int v = b[i] & 0xff;
 		dprintf(fd,"%.2x ", v);
 
 		if (((i + 1) % 16) == 0) {
 			dprintf(fd,"\n");
-			if (indent) dprintf(fd,indent);
+			if (indent) write(fd,indent,strlen(indent));
 		} else if (((i + 1) % 8) == 0) {
 			dprintf(fd," ");
 		}
