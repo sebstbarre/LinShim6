@@ -546,14 +546,14 @@ hexdump(uint8_t *b, int len, char *indent)
 {
 	int i;
 
-	if (indent) printf(indent);
+	if (indent) write(STDOUT_FILENO,indent,strlen(indent));
 	for (i = 0; i < len; i++) {
 		int v = b[i] & 0xff;
 		printf("%.2x ", v);
 
 		if (((i + 1) % 16) == 0) {
 			printf("\n");
-			if (indent) printf(indent);
+			if (indent) write(STDOUT_FILENO,indent,strlen(indent));
 		} else if (((i + 1) % 8) == 0) {
 			printf(" ");
 		}
