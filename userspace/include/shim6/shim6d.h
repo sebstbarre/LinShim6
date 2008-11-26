@@ -173,12 +173,12 @@ struct shim6_ctx {
 	struct in6_addr     lp_local;
 
 /*Context tags : 64 bits, but only 47 low order bits are used*/
-	uint64_t               ct_peer;
-	uint64_t               ct_local;
+        uint64_t            ct_peer;
+	uint64_t            ct_local;
 
 /*Initiator nonce*/
-	uint32_t               init_nonce;
-	uint32_t               update_nonce; /*This must be another field
+	uint32_t            init_nonce;
+	uint32_t            update_nonce; /*This must be another field
 					       than the init nonce, because
 					       it can happen that an
 					       update is sent while still in 

@@ -123,7 +123,7 @@ void clear_report_lists(struct reap_ctx* rctx)
 
 #ifdef SHIM6_DEBUG
 	struct shim6_ctx* ctx=shim6_ctx(rctx);
-	PDEBUG("Clearing reports list for ctx %llx\n",ctx->ct_local);
+	PDEBUG("Clearing reports list for ctx %" PRIx64 "\n",ctx->ct_local);
 #endif
 
 	list_for_each_entry_safe(probe_node, temp, &rctx->sent_probes, list) {
@@ -336,7 +336,7 @@ void reap_send_ka(struct nlmsghdr* nlhdr)
 	union shim6_msgpp ka_msg={.ka=&ka};
 	struct in6_addr dest_addr, src_addr;
 	struct shim6_ctx* ctx;
-	__u64* ct = NLMSG_DATA(nlhdr);
+	uint64_t* ct = NLMSG_DATA(nlhdr);
 
 
 	ctx=lookup_ct(*ct);
@@ -344,7 +344,7 @@ void reap_send_ka(struct nlmsghdr* nlhdr)
 	if (!ctx) {
 		syslog(LOG_ERR, "reap_send_ka : kernel knows a "
 		       "context tag that the daemon does not know : "
-		       "%llx\n",*ct);
+		       "%" PRIx64 "\n",*ct);
 		return;
 	}
 
@@ -647,7 +647,7 @@ void reap_init_explore(struct reap_ctx* rctx)
 
 void reap_init_explore_kern(struct nlmsghdr* nlhdr)
 {
-	__u64* ct=NLMSG_DATA(nlhdr);
+	uint64_t* ct=NLMSG_DATA(nlhdr);
 	struct shim6_ctx* ctx;
 
 	ctx=lookup_ct(*ct);
@@ -756,7 +756,7 @@ void reap_rcv_probe(struct reaphdr_probe* hdr)
 {
 	struct shim6_ctx* ctx;
 	struct reap_ctx* rctx;
-	__u64 ct;
+	uint64_t ct;
 	struct probe_address_node* probe_node; 
 	struct probe_address* sent_probe_report;
 	struct probe_address* rcvd_probe_report;
@@ -934,7 +934,7 @@ void reap_rcv_ka(struct reaphdr_ka* hdr)
 {
 	struct shim6_ctx* ctx;
 	struct reap_ctx* rctx;
-	__u64 ct;
+	uint64_t ct;
 	int pld_len;
 
 	pld_len=(hdr->common.hdrlen+1)<<3;
@@ -991,7 +991,7 @@ void reap_notify_in(struct nlmsghdr* nlhdr)
 	if (!ctx) {
 		syslog(LOG_ERR, "reap_notify_in : kernel knows a "
 		       "context tag that the daemon does not know : "
-		       "%llx\n",*ct);
+		       "%" PRIx64 "\n",*ct);
 		return;
 	}
 
@@ -1023,7 +1023,7 @@ void reap_notify_out(struct nlmsghdr* nlhdr)
 	if (!ctx) {
 		syslog(LOG_ERR, "reap_notify_out : kernel knows a "
 		       "context tag that the daemon does not know : "
-		       "%x%x\n",(int)(*ct>>32),(int)*ct);
+		       "%" PRIx64 "\n",*ct);
 		return;
 	}
 
@@ -1033,7 +1033,6 @@ void reap_notify_out(struct nlmsghdr* nlhdr)
 		start_send_timer(rctx,FALSE);
 	}
 }
-
 
 /* Initialization function for reapd.
  * return -1 in case of failure, 0 in case of success.

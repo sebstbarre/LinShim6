@@ -96,7 +96,7 @@ static int __dump_one_state(struct sockaddr_nl *who,
 			addrtostr(&data->in6_peer));
 		dprintf(fd,"\tULID local in data : %s\n",
 			addrtostr(&data->in6_local));
-		dprintf(fd,"\tLocal context tag : %llx\n",data->ct);
+		dprintf(fd,"\tLocal context tag : %" PRIx64 "\n",data->ct);
 	}
 	else {
 		dprintf(fd,"Outbound context\n");       
@@ -108,7 +108,7 @@ static int __dump_one_state(struct sockaddr_nl *who,
 			addrtostr(&data->in6_peer));
 		dprintf(fd,"\tCurrent local locator :%s\n",
 			addrtostr(&data->in6_local));
-		dprintf(fd,"\tPeer context tag : %llx\n",data->ct);
+		dprintf(fd,"\tPeer context tag : %" PRIx64 "\n",data->ct);
 
 	}
 	dprintf(fd,"------------------------------------------\n");
@@ -406,7 +406,7 @@ static void set_shim6_data(__u64 ct,
 	data->flags=flags;
 }
 
-static void create_shim6_tmpl(struct xfrm_user_tmpl *tmpl, __u64 ct)
+static void create_shim6_tmpl(struct xfrm_user_tmpl *tmpl, uint64_t ct)
 {	
 	memset(tmpl, 0, sizeof(*tmpl));
 	tmpl->family = AF_INET6;
@@ -604,7 +604,7 @@ int xfrm_add_shim6_ctx(const struct in6_addr* ulid_local,
 
 int xfrm_del_shim6_ctx(const struct in6_addr* ulid_local, 
 		       const struct in6_addr* ulid_peer,
-		       __u64 ct_local, __u64 ct_peer)
+		       uint64_t ct_local, uint64_t ct_peer)
 {
 	struct xfrm_selector sel;
 	struct shim6_data data;
@@ -718,7 +718,7 @@ static int parse_expire(struct nlmsghdr *msg)
 	if (!ctx) {
 		PDEBUG("%s : userspace context not found\n",__FUNCTION__);
 		if (data->flags&SHIM6_DATA_INBOUND)
-			PDEBUG("\tinbound, ct is %llx\n",data->ct);
+			PDEBUG("\tinbound, ct is %" PRIx64 "\n",data->ct);
 		else PDEBUG("\toutbound, saddr %s daddr %s\n",
 			    addrtostr((struct in6_addr*)&exp->state.sel.saddr),
 			    addrtostr((struct in6_addr*)&exp->state.sel.daddr));
