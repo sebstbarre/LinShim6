@@ -90,6 +90,10 @@
 /* enable logging of i2 reception times inside /etc/shim6/i2.log */
 #undef LOG_RCV_I2_TIME
 
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
 /* Disable MIP6-related debugging */
 #undef MIP6_NDEBUG
 
