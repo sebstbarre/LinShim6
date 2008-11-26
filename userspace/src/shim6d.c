@@ -663,7 +663,7 @@ int rcv_i1(shim6hdr_i1* hdr, struct in6_addr* saddr, struct in6_addr* daddr)
 	struct in6_addr* ulid_local;
 	struct in6_addr* ulid_peer;
 	struct shim6_ctx* ctx;
-	__u64 ct_peer;
+	uint64_t ct_peer;
 #ifdef LOG_RCV_I2_TIME
 	struct timespec start,stop,total_time;
 	static double time_array[NB_PARALLEL];
@@ -1086,7 +1086,7 @@ int rcv_i2(shim6hdr_i2* hdr,struct in6_addr* saddr,
 	__u32 i2_resp_nonce;
 	/*Pointer to the first octet next the end of the packet*/
 	char* packet_end = (char*)hdr + ((hdr->common.hdrlen+1)<<3); 
-	__u64 ct_peer;
+	uint64_t ct_peer;
 	unsigned char test_hash[VAL_LENGTH];
 	int prev;
 	int validator_ok=FALSE;
@@ -2144,7 +2144,7 @@ static struct shim6_ctx* __init_shim6_ctx(struct shim6_loc_l* ulid_local,
 	struct shim6_ctx* ctx;
 	int ulid_hash=hash_ulid(ulid_peer);
 	int ct_hash;
-	__u64 ct;
+	uint64_t ct;
 	struct hba_set* hs;
 	int valid_method;
 
