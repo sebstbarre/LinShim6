@@ -101,7 +101,7 @@ static int __dump_one_state(struct sockaddr_nl *who,
 			addrtostr(&data->paths[0].remote));
 		dprintf(fd,"\tULID local in data : %s\n",
 			addrtostr(&data->paths[0].local));
-		dprintf(fd,"\tLocal context tag : %llx\n",data->ct);
+		dprintf(fd,"\tLocal context tag : %" PRIx64 "\n",data->ct);
 		dprintf(fd,"\ttka: %d seconds\n",data->tka);
 		dprintf(fd,"\ttsend: %d seconds\n", data->tsend);
 	}
@@ -115,7 +115,7 @@ static int __dump_one_state(struct sockaddr_nl *who,
 			addrtostr(&data->paths[0].remote));
 		dprintf(fd,"\tCurrent local locator :%s\n",
 			addrtostr(&data->paths[0].local));
-		dprintf(fd,"\tPeer context tag : %llx\n",data->ct);
+		dprintf(fd,"\tPeer context tag : %" PRIx64 "\n",data->ct);
 		dprintf(fd,"\ttka: %d seconds\n",data->tka);
 		dprintf(fd,"\tsend: %d seconds\n", data->tsend);
 
@@ -408,7 +408,7 @@ static void set_selector(const struct in6_addr *daddr,
  * NOTE: In this version, @paths and @npaths are simply ignored.
  * They are provided for future use only by the multipath flavour of LinShim6.
  */
-static void set_shim6_data(__u64 ct, 
+static void set_shim6_data(uint64_t ct, 
 			   const struct in6_addr* in6_peer,
 			   const struct in6_addr* in6_local, 
 			   struct shim6_data *data, int flags,
@@ -428,7 +428,7 @@ static void set_shim6_data(__u64 ct,
 	data->tsend=get_tsend();
 }
 
-static void create_shim6_tmpl(struct xfrm_user_tmpl *tmpl, __u64 ct)
+static void create_shim6_tmpl(struct xfrm_user_tmpl *tmpl, uint64_t ct)
 {	
 	memset(tmpl, 0, sizeof(*tmpl));
 	tmpl->family = AF_INET6;
@@ -593,7 +593,7 @@ static int xfrm_state_del(int proto, const struct xfrm_selector *sel,
 
 int xfrm_add_shim6_ctx(const struct in6_addr* ulid_local, 
 		       const struct in6_addr* ulid_peer,
-		       __u64 ct_local, __u64 ct_peer, struct shim6_path *paths,
+		       uint64_t ct_local, uint64_t ct_peer, struct shim6_path *paths,
 		       int npaths, uint16_t tka)
 {
 	struct xfrm_selector sel;
@@ -628,7 +628,7 @@ int xfrm_add_shim6_ctx(const struct in6_addr* ulid_local,
 
 int xfrm_del_shim6_ctx(const struct in6_addr* ulid_local, 
 		       const struct in6_addr* ulid_peer,
-		       __u64 ct_local, __u64 ct_peer)
+		       uint64_t ct_local, uint64_t ct_peer)
 {
 	struct xfrm_selector sel;
 	struct shim6_data *data=(struct shim6_data*) shim6_data_buf;
@@ -747,7 +747,7 @@ static int parse_expire(struct nlmsghdr *msg)
 	if (!ctx) {
 		PDEBUG("%s : userspace context not found\n",__FUNCTION__);
 		if (data->flags&SHIM6_DATA_INBOUND)
-			PDEBUG("\tinbound, ct is %llx\n",data->ct);
+			PDEBUG("\tinbound, ct is %" PRIx64 "\n",data->ct);
 		else PDEBUG("\toutbound, saddr %s daddr %s\n",
 			    addrtostr((struct in6_addr*)&exp->state.sel.saddr),
 			    addrtostr((struct in6_addr*)&exp->state.sel.daddr));

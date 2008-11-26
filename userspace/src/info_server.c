@@ -141,12 +141,12 @@ static void* networkpty(void* arg)
 /*@pre : str is the ascii representation of an hexadecimal number.
  *@post : the hex number is returned in binary form
  */
-static __u64 strtoct (char* str)
+static uint64_t strtoct (char* str)
 {
 
-	__u64 ret;
+	uint64_t ret;
 
-	if (sscanf(str,"%llx",&ret)<0) return -1;
+	if (sscanf(str,"%" PRIx64 "",&ret)<0) return -1;
 	return ret;
 }
 
@@ -197,8 +197,8 @@ static void __one_state_info(int fd, struct shim6_ctx* ctx)
 	default: dprintf(fd,"unknown - This is a bug !\n"); break;
 	}
 	
-	dprintf(fd,"local context tag : %llx\n",ctx->ct_local);
-	dprintf(fd,"peer context tag : %llx\n",ctx->ct_peer);
+	dprintf(fd,"local context tag : %" PRIx64 "\n",ctx->ct_local);
+	dprintf(fd,"peer context tag : %" PRIx64 "\n",ctx->ct_peer);
 	dprintf(fd,"Peer locator list : \n");
 	for (i=0;i<ctx->ls_peer.size;i++) {
 		dprintf(fd,"\t%s\n",addrtostr(&ctx->ls_peer.psetp[i].addr));	
@@ -296,7 +296,7 @@ static int __state_info(int fd, char* ct_str)
 {
 	int i;
 	struct shim6_ctx* ctx;
-	__u64 ct;
+	uint64_t ct;
 
 	if (strlen(ct_str) < 5) return 0;
 	ct_str+=4; /*Pointing to the argument*/
@@ -321,7 +321,7 @@ static int __state_info(int fd, char* ct_str)
 	ctx=lookup_ct(ct);
 
 	if (!ctx) {
-		dprintf(fd,"cat: %llx: no such state\n",ct);
+		dprintf(fd,"cat: %" PRIx64 ": no such state\n",ct);
 		return 0;
 	}
 
@@ -363,7 +363,7 @@ static int __state_del(int fd, char* ct_str)
 	ctx=lookup_ct(ct);
 	
 	if (!ctx) {
-		dprintf(fd,"del: %llx: no such state\n",ct);
+		dprintf(fd,"del: %" PRIx64 ": no such state\n",ct);
 		return 0;
 	}
 	shim6_del_ctx(ctx);
@@ -382,7 +382,7 @@ static int __list_states(int fd, char* str)
 	for (i=0;i<SHIM6_HASH_SIZE;i++) {
 		list_for_each_entry(ctx,&ct_hashtable[i],collide_ct) {
 			ASSERT(ctx!=NULL);
-			dprintf(fd,"%llx\n",ctx->ct_local);
+			dprintf(fd,"%" PRIx64 "\n",ctx->ct_local);
 			PDEBUG("%s: ctx found at entry %d\n",__FUNCTION__,i);
 		}
 	}
@@ -656,7 +656,7 @@ possible_cmds(const char *text, int state)
 				PDEBUG("%s : not enough memory\n",__FUNCTION__);
 				break;
 			}
-			sprintf(str,"0x%llx",cur_node->ct);
+			sprintf(str,"0x%" PRIx64 "",cur_node->ct);
 			if (strncasecmp(str,text,len)==0) {
 				cur_node = list_entry(cur_node->list.next, 
 						      struct ct_node, list);
