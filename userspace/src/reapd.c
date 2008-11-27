@@ -1104,8 +1104,6 @@ void reap_art(struct nlmsghdr* nlhdr)
 #endif	
 }
 
-
-
 /* Initialization function for reapd.
  * return -1 in case of failure, 0 in case of success.
  */
