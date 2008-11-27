@@ -1071,36 +1071,32 @@ void reap_notify_out(struct nlmsghdr* nlhdr)
 
 void reap_art(struct nlmsghdr* nlhdr)
 {
+#ifdef LOG_EXPL_TIME
 	uint64_t* ct = NLMSG_DATA(nlhdr);
 	uint32_t* art = (uint32_t*)(ct+1);
 	struct shim6_ctx* ctx;
 	struct reap_ctx* rctx;
-
-#ifdef LOG_EXPL_TIME
-	{
-		int fd;
-		ctx=lookup_ct(*ct);
-		
-		if (!ctx) {
-			syslog(LOG_ERR, "reap_notify_out : kernel knows a "
-			       "context tag that the daemon does not know : "
-			       "%" PRIx64 "\n",*ct);
-			return;
-		}
+	int fd;
+	ctx=lookup_ct(*ct);
 	
-		rctx=&ctx->reap;
-		
-		/*Saving the ART in /etc/shim6/art.log*/
-		fd=open("/etc/shim6/art.log",O_WRONLY | O_CREAT | O_APPEND,
-			00640);
-		if (fd<0) {
-			syslog(LOG_ERR,"open : %m\n");
-		return;
-		}
-		dprintf(fd,"%d\n",*art);
-		close(fd);
+	if (!ctx) {
+	  syslog(LOG_ERR, "reap_notify_out : kernel knows a "
+		 "context tag that the daemon does not know : "
+		 "%" PRIx64 "\n",*ct);
+	  return;
 	}
 	
+	rctx=&ctx->reap;
+	
+	/*Saving the ART in /etc/shim6/art.log*/
+	fd=open("/etc/shim6/art.log",O_WRONLY | O_CREAT | O_APPEND,
+		00640);
+	if (fd<0) {
+	  syslog(LOG_ERR,"open : %m\n");
+	  return;
+	}
+	dprintf(fd,"%d\n",*art);
+	close(fd);
 #endif	
 }
 
