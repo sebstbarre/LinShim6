@@ -6,7 +6,7 @@
  *
  *	date : June 2008
  *
- *      Based on draft-ietf-shim6-failure-detection-10
+ *      Based on draft-ietf-shim6-failure-detection-13
  *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
