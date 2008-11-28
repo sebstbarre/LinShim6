@@ -97,13 +97,43 @@ void set_tsend(uint16_t new)
 	
 	if (new==reap_send_timeout) return;
 	reap_send_timeout=new;	
-
+	
 	sync_contexts(NULL,1);
 }
 
 uint16_t get_tsend(void)
 {
 	return reap_send_timeout;
+}
+
+/*States MUST never be transitioned manually.
+ * Rather, this function must be called
+ * to do this, to ensure that any operation associated with the state change
+ * is correctly performed
+ * Note that initial state CANNOT be set with this function, since it is not
+ * a transition.
+ */
+static inline void reap_set_state(struct reap_ctx *rctx, int state)
+{
+  switch(state) {
+  case REAP_OPERATIONAL:
+    break;
+  case REAP_INBOUND_OK:
+  case REAP_EXPLORING:
+
+#ifdef LOG_EXPL_TIME
+    if (rctx->state==REAP_OPERATIONAL) {
+      /*Save exploration start time*/
+      clock_gettime(CLOCK_REALTIME,&rctx->expl_time);
+      rctx->expl_nb_rcvd_probes=0;
+      rctx->expl_nb_sent_probes=0;
+    }
+#endif
+      break;
+  default: ASSERT(0); /*Force the program to crash, in order to debug this
+			case, which should never happen*/
+  }
+  rctx->state=state;
 }
 
 void reap_release_ctx(struct reap_ctx* rctx)
@@ -327,7 +357,7 @@ static void send_handler(struct tq_elem* send_timer)
 
 	ASSERT(rctx->state==REAP_INBOUND_OK);
 	
-	rctx->state=REAP_EXPLORING;
+	reap_set_state(rctx,REAP_EXPLORING);
 	/*Restart the exponential backoff for probe sending*/
 	init_probe_sending(rctx);
 	
@@ -656,7 +686,7 @@ void reap_init_explore(struct reap_ctx* rctx)
 	}
 	
 	/*Setting state to exploring*/
-	rctx->state=REAP_EXPLORING;
+	reap_set_state(rctx,REAP_EXPLORING);
 
 	init_probe_sending(rctx);
 
@@ -760,6 +790,8 @@ void init_reap_ctx(struct reap_ctx* rctx)
 {
 	int ans;
 	
+	/*The only case where we do not use reap_set_state, because
+	  this is the initialization, not a transition*/
 	rctx->state=REAP_OPERATIONAL;
 	rctx->cur_path_index=0;
 
@@ -932,17 +964,11 @@ void reap_rcv_probe(struct reaphdr_probe* hdr)
 		}
 		if (rctx->state!=REAP_OPERATIONAL)
 			reap_end_explore(rctx, rcvd_probe_report,hdr->sta);
-		rctx->state=REAP_OPERATIONAL;
+		reap_set_state(rctx,REAP_OPERATIONAL);
 		break;
 	case REAP_EXPLORING:
-		rctx->state=REAP_INBOUND_OK;
+		reap_set_state(rctx,REAP_INBOUND_OK);
 		if (orig_state==REAP_OPERATIONAL) {
-#ifdef LOG_EXPL_TIME
-			/*Save exploration start time*/
-			clock_gettime(CLOCK_REALTIME,&rctx->expl_time);
-			rctx->expl_nb_rcvd_probes=0;
-			rctx->expl_nb_sent_probes=0;
-#endif
 			init_probe_sending(rctx);
 			send_probe(rctx,FALSE);
 			start_send_timer(rctx,TRUE);
@@ -957,7 +983,7 @@ void reap_rcv_probe(struct reaphdr_probe* hdr)
 
 		if (rctx->state!=REAP_OPERATIONAL)
 			reap_end_explore(rctx, rcvd_probe_report,hdr->sta);
-		rctx->state=REAP_OPERATIONAL;
+		reap_set_state(rctx,REAP_OPERATIONAL);
 		send_probe(rctx,TRUE);
 		break;
 	}
@@ -1000,7 +1026,7 @@ void reap_rcv_ka(struct reaphdr_ka* hdr)
 	
 	switch(rctx->state) {
 	case REAP_EXPLORING:
-		rctx->state=REAP_INBOUND_OK;
+		reap_set_state(rctx,REAP_INBOUND_OK);
 		send_probe(rctx,TRUE);
 		start_send_timer(rctx,0);
 		break;
@@ -1040,7 +1066,7 @@ void reap_notify_in(struct nlmsghdr* nlhdr)
 		break;
 	case REAP_EXPLORING:
 		PDEBUG("Received data packet while exploring\n");
-		rctx->state=REAP_INBOUND_OK;
+		reap_set_state(rctx,REAP_INBOUND_OK);
 		start_send_timer(rctx,0);
 		send_probe(rctx,TRUE);
 		break;
