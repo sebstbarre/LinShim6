@@ -756,7 +756,7 @@ void reap_rcv_probe(struct reaphdr_probe* hdr)
 {
 	struct shim6_ctx* ctx;
 	struct reap_ctx* rctx;
-	uint64_t ct;
+	uint64_t   ct;
 	struct probe_address_node* probe_node; 
 	struct probe_address* sent_probe_report;
 	struct probe_address* rcvd_probe_report;

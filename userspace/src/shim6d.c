@@ -96,7 +96,7 @@ __u32 resp_secret;
 struct sha1_input {
 	__u32 secret;
 	__u32 resp_nonce;
-	__u64 init_ct; /*Initiator context tag*/	
+	uint64_t init_ct; /*Initiator context tag*/	
 	struct in6_addr ulid_local; /*From the I1 message*/
 	struct in6_addr ulid_peer; /*From the I1 message*/
 };
@@ -123,7 +123,7 @@ struct list_head init_list; /*list of contexts in course of initialization.*/
 /* Looks up for a context using the context tag hash table
  */
  
-struct shim6_ctx* lookup_ct(__u64 ct) 
+struct shim6_ctx* lookup_ct(uint64_t ct) 
 {
 	int ct_hash;
 	struct shim6_ctx* ctx;
@@ -216,7 +216,7 @@ static void resp_nonce_handler(struct tq_elem* timer)
  * @prev : If TRUE, prev_resp_secret is used instead of resp_secret
  */
 static inline void get_resp_hash(unsigned char* dest,__u32 resp_nonce,
-				 __u64 init_ct,
+				 uint64_t init_ct,
 				 struct in6_addr* ulid_local,
 				 struct in6_addr* ulid_peer, int prev) {
 

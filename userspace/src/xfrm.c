@@ -395,7 +395,7 @@ static void set_selector(const struct in6_addr *daddr,
 		sel->prefixlen_s = 128;
 }
 
-static void set_shim6_data(__u64 ct, 
+static void set_shim6_data(uint64_t ct, 
 			   const struct in6_addr* in6_peer,
 			   const struct in6_addr* in6_local, 
 			   struct shim6_data *data, int flags)
@@ -570,7 +570,7 @@ static int xfrm_state_del(int proto, const struct xfrm_selector *sel,
 
 int xfrm_add_shim6_ctx(const struct in6_addr* ulid_local, 
 		       const struct in6_addr* ulid_peer,
-		       __u64 ct_local, __u64 ct_peer)
+		       uint64_t ct_local, uint64_t ct_peer)
 {
 	struct xfrm_selector sel;
 	struct xfrm_user_tmpl tmpl;
