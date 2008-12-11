@@ -2,3 +2,5 @@
 *~
 /*.deb
 /build-um
+*.tar.gz
+\#*

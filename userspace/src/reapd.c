@@ -979,7 +979,11 @@ void reap_rcv_probe(struct reaphdr_probe* hdr)
 		break;
 	case REAP_INBOUND_OK:
 		/*End of exploration*/ 
-		if (hdr->precvd==0) rcvd_probe_report=NULL;
+		if (hdr->precvd==0) {
+			PDEBUG("reap_rcv_probe : No received probe "
+			       "report\n");
+			rcvd_probe_report=NULL;
+		}
 
 		if (rctx->state!=REAP_OPERATIONAL)
 			reap_end_explore(rctx, rcvd_probe_report,hdr->sta);

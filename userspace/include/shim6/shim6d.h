@@ -305,7 +305,7 @@ void shim6_del_all_ctx(void);
  * hash table resp.
  */
  
-struct shim6_ctx* lookup_ct(__u64 ct);
+struct shim6_ctx* lookup_ct(uint64_t ct);
 struct shim6_ctx* lookup_ulid(struct in6_addr* ulid_peer,
 			      struct in6_addr* ulid_local);
 

@@ -5,6 +5,7 @@
 *.loT
 *.la
 Makefile
+Makefile.in
 .*
 !.gitignore
 /config.h
@@ -13,4 +14,4 @@ Makefile
 /libtool
 /stamp-h1
 /autom4te.cache
-/m4
+/*.tar.gz

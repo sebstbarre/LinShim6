@@ -118,7 +118,6 @@ static int __dump_one_state(struct sockaddr_nl *who,
 		dprintf(fd,"\tPeer context tag : %" PRIx64 "\n",data->ct);
 		dprintf(fd,"\ttka: %d seconds\n",data->tka);
 		dprintf(fd,"\tsend: %d seconds\n", data->tsend);
-
 	}
 	dprintf(fd,"------------------------------------------\n");
 
@@ -593,7 +592,8 @@ static int xfrm_state_del(int proto, const struct xfrm_selector *sel,
 
 int xfrm_add_shim6_ctx(const struct in6_addr* ulid_local, 
 		       const struct in6_addr* ulid_peer,
-		       uint64_t ct_local, uint64_t ct_peer, struct shim6_path *paths,
+		       uint64_t ct_local, uint64_t ct_peer, 
+		       struct shim6_path *paths,
 		       int npaths, uint16_t tka)
 {
 	struct xfrm_selector sel;
