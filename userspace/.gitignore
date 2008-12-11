@@ -5,6 +5,7 @@
 *.loT
 *.la
 Makefile
+Makefile.in
 .*
 !.gitignore
 /config.h
