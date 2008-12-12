@@ -40,6 +40,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <errno.h>
 
 #include <linux/shim6.h>
 #include <linux/netlink.h>
@@ -247,8 +248,21 @@ static void reap_end_explore(struct reap_ctx* rctx,
 		fd=open("/etc/shim6/expl.log", O_WRONLY | O_CREAT | O_APPEND,
 			00640);
 		if (fd<0) {
-			syslog(LOG_ERR,"open : %m\n");
-			goto failure;
+			switch(errno) {
+			case ENOENT:
+				/*The /etc/shim6 is probably not present, 
+				  create it*/
+				mkdir("/etc/shim6",S_IRWXU | S_IROTH | S_IRGRP);
+				/*Try again*/
+				fd=open("/etc/shim6/expl.log", 
+					O_WRONLY | O_CREAT | O_APPEND,00640);
+				if (fd>0) break;
+			default:
+				syslog(LOG_ERR,"open : %m\n");
+				syslog(LOG_ERR,
+				       "impossible to log expl. time\n");
+				goto failure_log_expl;
+			}
 		}
 		clock_gettime(CLOCK_REALTIME, &now);
 		tssub(now,rctx->expl_time,expl_time);
@@ -270,17 +284,13 @@ static void reap_end_explore(struct reap_ctx* rctx,
 		dprintf(fd, "recvd probes : %d\n", rctx->expl_nb_rcvd_probes);
 		dprintf(fd, "sent probes : %d\n\n", rctx->expl_nb_sent_probes);
 	} while (0);
+failure_log_expl:
 #endif
 	
 	/*Update the preferred locators in the daemon/kernel context*/
 	if (addresses)
 		xfrm_update_shim6_ctx(ctx,&addresses->dest,&addresses->src,
 				      NULL,0);
-
-#ifdef LOG_EXPL_TIME	
-failure:
-#endif
-
 	if (fd!=-1) close(fd);
 }
 
