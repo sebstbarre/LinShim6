@@ -601,7 +601,7 @@ static is_cmd_t local_cmds[] = {
 	{ "dkp", "Dump kernel policies",3,
 	  dump_all_kern_policies},
 #ifdef LOG_EXPL_TIME
-	{ "reset timelog", "Reset the log file for exploration time analysis", 
+	{ "reset timelog", "Reset the log file for exploration and art time analysis", 
 	  7, reset_timelog},
 	{ "get timelog", "Print the log file for exploration time analysis",
 	  5, get_timelog},
