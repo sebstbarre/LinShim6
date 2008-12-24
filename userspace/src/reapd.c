@@ -320,13 +320,23 @@ void probe_handler(struct tq_elem* timer)
 }
 
 #ifndef IDIPS
+
+void swap_path_arrays(struct shim6_path* path_array1, 
+		     struct shim6_path* path_array2) 
+{
+	
+	struct shim6_path temp;
+	memcpy(&temp,path_array1,sizeof(struct shim6_path));
+	memcpy(path_array1,path_array2,sizeof(struct shim6_path));
+	memcpy(path_array2,&temp, sizeof(struct shim6_path));	
+}
+
 /*Moves randomly each element inside path_array. The elements remain exactly
  * the same, they have just their index inside the array changed randomly
  * returns -1 in case of error, 0 in case of success*/
 void randomize_array(struct shim6_path* path_array, int size)
 {
 	int i,rand_index;
-	struct shim6_path temp;
 
 	ASSERT(path_array!=NULL);
 
@@ -334,29 +344,80 @@ void randomize_array(struct shim6_path* path_array, int size)
 	for (i=0;i<size-1;i++) {
 		rand_index=i+random_int()%(size-i);
 		/*swap index i and rand_index*/
-		if (rand_index!=i) {
-			memcpy(&temp,&path_array[i],sizeof(struct shim6_path));
-			memcpy(&path_array[i],&path_array[rand_index],
-			       sizeof(struct shim6_path));
-			memcpy(&path_array[rand_index],&temp,
-			       sizeof(struct shim6_path));
-		}
+		if (rand_index!=i)
+			swap_path_arrays(&path_array[i],
+					 &path_array[rand_index]);
 	}
 	PDEBUG("Leaving randomize_array\n");
 }
 #endif
+
+/**
+ * Returns 1 if both the local and remote adress in @path is
+ * distinct from resp. the local and remote preferred locator in @ctx.
+ * else returns 0
+ */
+static int inline is_distinct(struct shim6_path *path,struct shim6_ctx* ctx)
+{
+	if (ipv6_addr_equal(&path->local,
+			    &ctx->lp_local) ||
+	    ipv6_addr_equal(&path->remote,
+			    &ctx->lp_peer)) return 0;
+	else return 1;
+}
 
 /* Initialize relevant fields in rctx to start a new burst of probes.
  * This must be called when leaving the operational state
  */
 static void inline init_probe_sending(struct reap_ctx* rctx) 
 {
+  
 	PDEBUG("Entering init_probe_sending");
 	rctx->probe_ival=PROBE_INIT_TIME;
 #ifdef IDIPS
 	idips_send_request(shim6_ctx(rctx));
 #else
-	randomize_array(rctx->path_array,rctx->path_array_size);
+	{
+		int i,j=0;
+		int sep_index=-1; /*First index of the second set*/
+		struct shim6_ctx *ctx=shim6_ctx(rctx);
+		/*We make two randomized sets:
+		 * the first one holds only address pairs that are different
+		 * from the current pair (both src and dest). 
+		 * The second one contains
+		 * all other address pairs.
+		 * This allows preferring maximally distinct paths*/
+		for (i=0;i<rctx->path_array_size;i++) {
+			if (!is_distinct(&rctx->path_array[i],ctx)) {
+				if (i==rctx->path_array_size-1) {
+					sep_index=i;
+					break;
+				}
+				for (j=i+1;j<rctx->path_array_size;j++) {
+					if (!is_distinct(&rctx->path_array[j],
+							 ctx)) continue;
+					/*j entry is distinct, swap*/
+					swap_path_arrays(&rctx->path_array[i],
+							 &rctx->path_array[j]);
+					break;
+				}
+				if (j==rctx->path_array_size) {
+					sep_index=i;
+					break;
+				}
+			}
+		}
+
+		if (sep_index==-1 ||  /*All paths distinct*/
+		    sep_index==0) /*No path  is distinct*/
+			randomize_array(rctx->path_array,rctx->path_array_size);
+		else {
+			/*Separately randomize the two sets*/
+			randomize_array(rctx->path_array,sep_index);
+			randomize_array(&rctx->path_array[sep_index],
+					rctx->path_array_size-sep_index);
+		}
+	}
 #endif
 }
 
