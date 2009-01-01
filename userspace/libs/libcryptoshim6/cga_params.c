@@ -148,7 +148,11 @@ cgad_readder(const char *fname, int *dlen)
 		return (NULL);
 	}
 
-	fread(der, 1, sb->st_size, fp);
+	if (fread(der, 1, sb->st_size, fp)!=sb->st_size) {
+		applog(LOG_ERR, "%s: Could not read file '%s': %s",
+		       __FUNCTION__, fname, strerror(errno));
+		return (NULL);
+	}
 	fclose(fp);
 	*dlen = sb->st_size;
 
@@ -608,14 +612,14 @@ hexdump(int fd, uint8_t *b, int len, char *indent)
 {
 	int i;
 
-	if (indent) write(fd,indent,strlen(indent));
+	if (indent) dprintf(fd,"%s",indent);
 	for (i = 0; i < len; i++) {
 		int v = b[i] & 0xff;
 		dprintf(fd,"%.2x ", v);
 
 		if (((i + 1) % 16) == 0) {
 			dprintf(fd,"\n");
-			if (indent) write(fd,indent,strlen(indent));
+			if (indent) dprintf(fd,"%s",indent);
 		} else if (((i + 1) % 8) == 0) {
 			dprintf(fd," ");
 		}

@@ -110,21 +110,28 @@ static void* networkpty(void* arg)
 			   &fdset,NULL,NULL,NULL);
 		
 		if (ans<0) {
-			PDEBUG("error in select : %m\n");
+			syslog(LOG_ERR,"error in select : %m\n");
 			exit(EXIT_FAILURE);
 		}
 
 		if (FD_ISSET(pipefd[0],&fdset)) {
 			char c;
-			read(pipefd[0],&c,1); /*freeing the pipe*/
+			if (read(pipefd[0],&c,1)!=1) { /*freeing the pipe*/
+				syslog(LOG_ERR,"%s:read error in pipe",
+				       __FUNCTION__);
+				exit(EXIT_FAILURE);
+			}
 			PDEBUG("closing of socket detected\n");
 			pthread_exit(NULL);
 		}
 		
 		if (FD_ISSET(pty_master,&fdset)) {
 			nbread=read(pty_master,buf,BUF_SIZE);
-			if (nbread>0)
-				write(connfd,buf,nbread);
+			if (nbread>0 && write(connfd,buf,nbread)!=nbread) {
+				syslog(LOG_ERR,"%s:write error in socket",
+				       __FUNCTION__);
+				exit(EXIT_FAILURE);
+			}
 		}
 
 		if (FD_ISSET(connfd,&fdset)) {
@@ -132,8 +139,11 @@ static void* networkpty(void* arg)
 			if (nbread<0) {
 				pthread_exit(NULL);
 			}
-			if (nbread>0)
-				write(pty_master,buf,nbread);
+			if (nbread>0 && write(pty_master,buf,nbread)!=nbread) {
+				syslog(LOG_ERR,"%s:write error in pty",
+				       __FUNCTION__);
+				exit(EXIT_FAILURE);
+			}
 		}
 	}
 }
@@ -691,7 +701,10 @@ static void clear_pipe(void)
 	if (-1 == (flags = fcntl(pipefd[0], F_GETFL, 0)))
 		flags = 0;
 	fcntl(pipefd[0], F_SETFL, flags | O_NONBLOCK);
-	read(pipefd[0], &c,1);
+	if (read(pipefd[0], &c,1)<0 && errno!=EAGAIN) {
+		syslog(LOG_ERR,"%s:read error in pipe:%m",__FUNCTION__);
+		exit(EXIT_FAILURE);
+	}
 	fcntl(pipefd[0], F_SETFL, flags); /*Restoring blocking I/O*/
 }
 
@@ -764,7 +777,11 @@ static void* runner(void* arg)
 			free(command);
 		}
 	close_conn:
-		write(pipefd[1],&c,1);
+		if (write(pipefd[1],&c,1)!=1) {
+			syslog(LOG_ERR,"%s:write error in pipe:%m",
+			       __FUNCTION__);
+			exit(EXIT_FAILURE);
+		}
 		PDEBUG("%s : Joining networkpty_thread...",__FILE__);
 		pthread_join(networkpty_thread,NULL);
 		PDEBUG("    ...done");

@@ -332,7 +332,10 @@ do_readder(const char *p)
 		return (-1);
 	}
 
-	fread(der, 1, sb->st_size, fp);
+	if (fread(der, 1, sb->st_size, fp)!=sb->st_size) {
+		printf("Could not read file: %s\n", strerror(errno));
+		return (-1);
+	}
 	fclose(fp);
 	dlen = sb->st_size;
 
@@ -360,7 +363,10 @@ do_writeder(const char *f)
 		return (-1);
 	}
 
-	fwrite(cga->der, 1, cga->derlen, fp);
+	if (fwrite(cga->der, 1, cga->derlen, fp)!=cga->derlen) {
+		printf("Could not write to file: %s\n", strerror(errno));
+		return (-1);		
+	}
 	fclose(fp);
 
 	return (0);
@@ -546,14 +552,14 @@ hexdump(uint8_t *b, int len, char *indent)
 {
 	int i;
 
-	if (indent) write(STDOUT_FILENO,indent,strlen(indent));
+	if (indent) printf("%s",indent);
 	for (i = 0; i < len; i++) {
 		int v = b[i] & 0xff;
 		printf("%.2x ", v);
 
 		if (((i + 1) % 16) == 0) {
 			printf("\n");
-			if (indent) write(STDOUT_FILENO,indent,strlen(indent));
+			if (indent) printf("%s",indent);
 		} else if (((i + 1) % 8) == 0) {
 			printf(" ");
 		}
