@@ -121,8 +121,14 @@ int main(int argc, char* argv[])
 		
 		if (FD_ISSET(sock,&fdset)) {			
 			ans=recv(sock,buf,BUF_SIZE,0);
-			if (ans>0) 
-				write(STDOUT_FILENO,buf,ans);
+			if (ans>0) { 
+				if (write(STDOUT_FILENO,buf,ans)!=ans) {
+					perror("write to stdout");
+					tcsetattr(STDIN_FILENO,TCSAFLUSH,
+						  &termorig);
+					exit(EXIT_FAILURE);
+				}
+			}
 			else {
 				perror("read from network");
 				tcsetattr(STDIN_FILENO,TCSAFLUSH,&termorig);
@@ -132,12 +138,13 @@ int main(int argc, char* argv[])
 		}
 		if (FD_ISSET(STDIN_FILENO,&fdset)) {
 			ans=read(STDIN_FILENO,buf,BUF_SIZE);
-			if (ans>0) 
-				write(sock,buf,ans);
+			if (ans>0 && write(sock,buf,ans)!=ans) {
+				perror("write to network");
+				tcsetattr(STDIN_FILENO,TCSAFLUSH,&termorig);
+				exit(EXIT_FAILURE);
+			}
 		}
-
-	}
-
+	}       
 	tcsetattr(STDIN_FILENO,TCSAFLUSH,&termorig);
 	return EXIT_SUCCESS;
 }

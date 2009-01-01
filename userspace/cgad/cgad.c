@@ -318,7 +318,11 @@ main(int argc, char **argv)
 	thrpool_set_max(cgad_conf_get_int(cgad_thrpool_max));
 
 	if (do_daemon) {
-		daemon(0, 0);
+		if (daemon(0, 0)<0) {
+			syslog(LOG_ERR,"%s:error in function daemon:%m",
+			       __FUNCTION__);
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	if (system("disable_autoconf")<0) {
