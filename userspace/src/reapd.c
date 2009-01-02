@@ -116,25 +116,36 @@ uint16_t get_tsend(void)
  */
 static inline void reap_set_state(struct reap_ctx *rctx, int state)
 {
-  switch(state) {
-  case REAP_OPERATIONAL:
-    break;
-  case REAP_INBOUND_OK:
-  case REAP_EXPLORING:
-
+	switch(state) {
+	case REAP_OPERATIONAL:
+		break;
+	case REAP_INBOUND_OK:
 #ifdef LOG_EXPL_TIME
-    if (rctx->state==REAP_OPERATIONAL) {
-      /*Save exploration start time*/
-      clock_gettime(CLOCK_REALTIME,&rctx->expl_time);
-      rctx->expl_nb_rcvd_probes=0;
-      rctx->expl_nb_sent_probes=0;
-    }
+		if (rctx->state==REAP_OPERATIONAL) {
+			/*Save exploration start time*/
+			clock_gettime(CLOCK_REALTIME,&rctx->expl_time);
+			/*For the transition op->inb.ok, one probe has already
+			  been received*/
+			rctx->expl_nb_rcvd_probes=1;
+			rctx->expl_nb_sent_probes=0;
+		}
 #endif
-      break;
-  default: ASSERT(0); /*Force the program to crash, in order to debug this
-			case, which should never happen*/
-  }
-  rctx->state=state;
+		break;
+	case REAP_EXPLORING:
+		
+#ifdef LOG_EXPL_TIME
+		if (rctx->state==REAP_OPERATIONAL) {
+			/*Save exploration start time*/
+			clock_gettime(CLOCK_REALTIME,&rctx->expl_time);
+			rctx->expl_nb_rcvd_probes=0;
+			rctx->expl_nb_sent_probes=0;
+		}
+#endif
+		break;
+	default: ASSERT(0); /*Force the program to crash, in order to debug this
+			      case, which should never happen*/
+	}
+	rctx->state=state;
 }
 
 void reap_release_ctx(struct reap_ctx* rctx)
@@ -282,7 +293,11 @@ static void reap_end_explore(struct reap_ctx* rctx,
 			expl_time.tv_sec,
 			expl_time.tv_nsec);
 		dprintf(fd, "recvd probes : %d\n", rctx->expl_nb_rcvd_probes);
-		dprintf(fd, "sent probes : %d\n\n", rctx->expl_nb_sent_probes);
+		/*If state in the peer is inbound_ok, we will reply with a probe
+		  operational*/
+		dprintf(fd, "sent probes : %d\n\n", 
+			(sta==REAP_INBOUND_OK)?rctx->expl_nb_sent_probes+1:
+			rctx->expl_nb_sent_probes);
 	} while (0);
 failure_log_expl:
 #endif
