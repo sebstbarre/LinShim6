@@ -432,6 +432,7 @@ static void inline init_probe_sending(struct reap_ctx* rctx)
 			randomize_array(&rctx->path_array[sep_index],
 					rctx->path_array_size-sep_index);
 		}
+		rctx->cur_path_index=0;
 	}
 #endif
 }
