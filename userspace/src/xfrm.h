@@ -19,9 +19,11 @@
 #include <asm/types.h>
 #include <shim6/shim6d.h>
 
-#define NOSHIM6_PRIO_DEFAULT            99 /*Priority for rules used to
-					     bypass the shim6 layer*/
-#define SHIM6_PRIO_DEFAULT		100
+#define MIP6_PRIO_HOME_DATA		6 /*Copied from the mip6 daemon*/
+#define SHIM6_PRIO_DEFAULT		MIP6_PRIO_HOME_DATA /*We want to merge
+							      with the policies
+							      from the mip6 
+							      daeomon*/
 
 
 int xfrm_init(void);

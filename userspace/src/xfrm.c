@@ -793,8 +793,7 @@ static void *xfrm_listen(void *dummy)
 
 /**
  * Checks if the policy is a shim6 policy. (We consider that a policy
- * is a shim6 policy if its priority is set to SHIM6_PRIO_DEFAULT or
- * NOSHIM6_PRIO_DEFAULT)
+ * is a shim6 policy if its priority is set to SHIM6_PRIO_DEFAULT)
  *
  * @post : If the policy has priority SHIM6_PRIO_DEFAULT or 
  *         NOSHIM6_PRIO_DEFAULT, it is removed from
@@ -810,8 +809,7 @@ static int __clean_one_policy(struct sockaddr_nl *who,
 		return -1;
 	if (n->nlmsg_type != XFRM_MSG_NEWPOLICY)
 		return 0;
-	if (pol->priority==SHIM6_PRIO_DEFAULT || 
-	    pol->priority==NOSHIM6_PRIO_DEFAULT)
+	if (pol->priority==SHIM6_PRIO_DEFAULT)
 		xfrm_policy_del(&pol->sel,pol->dir);
 	return 0;
 }
@@ -867,7 +865,6 @@ static int clean_old_shim6_states(void)
 int xfrm_init(void)
 {
 	int val;
-	struct xfrm_selector sel;
 	int err=0;
 
 	if (rtnl_xfrm_open(&xfrm_rth, 0) < 0)
@@ -883,17 +880,6 @@ int xfrm_init(void)
 	
 	/*Removing old states that remain from a previous shim6d execution.*/
 	if (clean_old_shim6_states()<0) goto error;
-
-	/*Create policies that prevent ICMP and Shim6 packets
-	  to go through the Shim6 layer.*/
-	set_selector(&in6addr_any,&in6addr_any,0,IPPROTO_ICMPV6,&sel);
-	err=xfrm_policy_add(&sel,0,XFRM_POLICY_OUT,XFRM_POLICY_ALLOW,
-				   NOSHIM6_PRIO_DEFAULT,NULL,0,0);
-	if (err<0 && err!=-EEXIST) goto error;
-	sel.proto=IPPROTO_SHIM6;
-	err=xfrm_policy_add(&sel,0,XFRM_POLICY_OUT,XFRM_POLICY_ALLOW,
-			    NOSHIM6_PRIO_DEFAULT,NULL,0,0);
-	if (err<0 && err!=-EEXIST) goto error;
 	
 	return 0;
 
