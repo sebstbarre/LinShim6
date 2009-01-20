@@ -1714,10 +1714,19 @@ static int new_addr(struct in6_addr* addr, int ifidx)
 	struct locset *clone;
 	struct hba_set *hs;
 	uint8_t valid_method=0;
+	shim6_loc_l *locator;
 	
 	/*Check if the address has already been registered*/
-	if (lookup_loc_l(addr,NULL)) {
-		PDEBUG("%s: Address already registered\n", __FUNCTION__);
+	if ((locator=lookup_loc_l(addr,NULL))) {
+		if (locator->ifidx==ifidx)
+			PDEBUG("%s: Address already registered\n",
+			       __FUNCTION__);
+		else {
+			PDEBUG("%s: Address ifidx adapted from %d"
+			       "to %d\n",__FUNCTION__,locator->ifidx,ifidx);
+			locator->ifidx=ifidx;
+		}
+			
 		return 0;
 	}
 	
@@ -1808,6 +1817,7 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	
 	PDEBUG("Removing address %s from local locator structure\n",
 	       addrtostr(addr));
+
 	valid_method=get_valid_method(addr,ifidx,&hs);
 
 	/*Oppositely to new_addr, we do not need here to create a clone
@@ -1826,12 +1836,17 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 		if (found) {
 			ipv6_addr_copy(&(locator-1)->addr,&locator->addr);
 		}
-		else if (ipv6_addr_equal(addr,&locator->addr)) found=1;
+		else if (ipv6_addr_equal(addr,&locator->addr) &&
+			 locator->ifidx==ifidx) found=1;
 	}
 
-	/*If the loc is not found, then the kernel is sending bad locators
-	 * (for example link local, ...)*/
-	ASSERT(found);
+	/*It is possible that the locator is not found if we just 
+	  changed the adress from one iface to another (mip6d does that)*/
+	if (!found) {
+		PDEBUG("Address to remove not found. "
+		       "Probably a iface change...");
+		return 0;
+	}
 	
 	ls->size--;
 	ls->gen_number=glob_gen_nb++;
