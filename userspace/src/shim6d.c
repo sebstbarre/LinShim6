@@ -1397,6 +1397,9 @@ int rcv_ur(shim6hdr_ur* hdr,struct in6_addr* saddr, struct in6_addr* daddr)
 	if (psd_opts[PO_LOC] && get_locators(psd_opts[PO_LOC],ctx)<0)
 		goto failure;
 
+	/*Update the path array*/
+	fill_path_array(&ctx->reap);
+
 	if (send_ua(ctx, hdr->nonce)<0) return -1;
 
 	return 0;
