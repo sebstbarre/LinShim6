@@ -203,6 +203,8 @@ int add_loc_option(void)
 			      any security (shim6eval only)*/
 	struct locset *ls;
 
+	PDEBUG("Adding loc option\n");
+
 	ASSERT(ctx);
 	
 	if (!attack) {
@@ -289,6 +291,8 @@ int add_cga_pds_option()
 	struct option* opt;
 	
 	ASSERT(ctx);
+
+	PDEBUG("Adding cga pds option\n");
 	
 	if (!need_pds) return 0;
 
@@ -326,6 +330,8 @@ static int write_cga_sign_option(char* buf, struct option* opt)
 int add_cga_sign_option()
 {
 	struct option* opt;
+
+	PDEBUG("Adding CGA sign option\n");
 	
 	/*If all addresses are verified with HBA, no signature
 	  is needed*/
@@ -381,6 +387,8 @@ int add_ka_option(void)
 {
 	struct option* opt;
 	ASSERT(ctx);
+
+	PDEBUG("Adding ka option\n");
 	
 	/*If send timer is the default, the option is not
 	  necessary*/

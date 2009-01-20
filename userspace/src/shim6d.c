@@ -1646,6 +1646,8 @@ static void update_contexts(struct locset* prev, struct locset* new,
 				  locator*/
 				if (get_nb_loc_locs(ctx,TRUE,NULL,NULL,
 						    NULL)==0) {
+					PDEBUG("No more locators, "
+					       "deleting ctx\n");
 					shim6_del_ctx(ctx);
 					return;
 				}
@@ -1803,10 +1805,10 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	uint8_t valid_method=0;
 	shim6_loc_l* locator;
 	int i,found=0;
-
-	valid_method=get_valid_method(addr,ifidx,&hs);
+	
 	PDEBUG("Removing address %s from local locator structure\n",
 	       addrtostr(addr));
+	valid_method=get_valid_method(addr,ifidx,&hs);
 
 	/*Oppositely to new_addr, we do not need here to create a clone
 	 * of the loc list, since anyway, the effect of removing a locator
@@ -1848,6 +1850,9 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	update_contexts(ls,ls,addr);
 	/*If the modified set is an HBA set, also update the corresponding
 	  contexts */
+	/*Probably a BUG: we do twice the same thing !!! I guess the intention
+	  was update the corresponding hba set, thus, not ls, but the list to
+	  which hs belongs*/
 	if (hs && !hs->cgacompat) update_contexts(ls,ls,addr);
 	
 	return 0;
@@ -2317,10 +2322,10 @@ void shim6_new_loc_addr(struct nlmsghdr* nlhdr)
 	PDEBUG("Entering %s\n",__FUNCTION__);
 	int* ifidx=(int*)(addr+1);
 
-	new_addr(addr,*ifidx);
-
 	PDEBUG("Adding address %s to local locator list\n",
 	       addrtostr(addr));
+
+	new_addr(addr,*ifidx);
 }
 /**
  * Handler for message SHIM6_NL_DEL_LOC_ADDR
