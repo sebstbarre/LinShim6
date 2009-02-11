@@ -85,6 +85,11 @@ load_privkey(const char *f)
 	}
 	fclose(fp);
 
+	if (EVP_PKEY_bits(k) < MIN_KEY_BITS) {
+		DBG(&dbg_sig, "private key too short - %d bits : should be at "
+		    "least %d bits",EVP_PKEY_bits(k),MIN_KEY_BITS);
+	}
+
 	return (k);
 }
 
@@ -108,6 +113,11 @@ sign(struct iovec *iov, int iovlen, int *slen, void *priv /* EVP_PKEY */)
 	if (priv == NULL) {
 		DBG(&dbg_sig, "private key not set");
 		return (NULL);
+	}
+
+	if (EVP_PKEY_bits(priv) < MIN_KEY_BITS) {
+		DBG(&dbg_sig, "private key too short - %d bits : should be at "
+		    "least %d bits",EVP_PKEY_bits(priv),MIN_KEY_BITS);
 	}
 
 	if ((*slen = EVP_PKEY_size(priv)) == 0) {
