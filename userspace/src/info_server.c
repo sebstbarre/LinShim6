@@ -835,9 +835,12 @@ static void* runner(void* arg)
 int init_info_server()
 {
 	int ret;
+	unsigned long optval=1;
 	
 	listenfd=socket(AF_INET,SOCK_STREAM,0);
 	if (listenfd<0) return listenfd;
+
+	setsockopt(listenfd,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(optval));
 	
 	bzero(&servaddr,sizeof(servaddr));
 	servaddr.sin_family=AF_INET;
