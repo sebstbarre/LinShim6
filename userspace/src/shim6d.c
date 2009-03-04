@@ -1019,6 +1019,9 @@ static int get_locators(struct shim6_opt* loc_option,struct shim6_ctx* ctx)
 		ctx->r1_vldt=NULL;
 	}
 
+	/*Updating the path array list*/
+	if (fill_path_array(&ctx->reap)<0) return -1;
+
 	if (!found && ctx->state==SHIM6_ESTABLISHED) 
 		reap_init_explore(&ctx->reap);
 
