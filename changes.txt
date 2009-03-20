@@ -10,11 +10,15 @@ Major changes
   has changed after a failure recovery, so that TCP immmediately
   retransmits, and does not wait for the end of the backoff retransmit
   timer, which may be several seconds. This thus improves the speed of recovery.
-- Added multipath capability to Shim6 (ongoing research) : Shim6 can now
-  send data over multiple paths at once. It should be used together
-  with a special congestion control module, however, in order to get
-  its full power.
-
+- Added module support for Shim6. Shim6 can be compiled as a module
+  and loaded at kernel run time. The Shim6 trigger heuristic is a
+  separate module, so that people can disable the heuristic (and thus
+  only answer to explicit requests from peers), or develop their own
+  heuristic, properly interfaced with the LinShim6 daemon.
+- Added an option to the shim6 console (shim6c) to dynamically set the
+  Tsend timer, with automatic update of the peer (The peer's Tka is
+  automatically set to Tsend/3).
+  
 
 Version 0.8.3
 --------------

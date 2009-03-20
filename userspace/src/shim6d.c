@@ -7,14 +7,6 @@
  *  TODO :     - Monitor the state of the addresses (subscribe to 
  *               the kernel events
  *               that notify when an address appears/disappears/...)
- *             - Add support for shim6 locators list updates : When adding this
- *               we'll have to verify that, when replacing a locators list, 
- *               the sent_probes list of the reap context is cleared (because
- *               otherwise it will contain invalid references : Note that 
- *               usually this is not a problem as a locators list update is not
- *               sent during an exploration process, and, should this 
- *               occur, other probes can be sent, so that the process is just
- *               delayed.)
  *             - Replace the current way of dealing with the loc list gen
  *               number to replace it with a random number saved in each
  *               context. This is to prevent an attacker from sending false
@@ -1128,7 +1120,7 @@ int rcv_i2(shim6hdr_i2* hdr,struct in6_addr* saddr,
 			  NULL);
 	if (ans<0) return 0;
 
-	/*draft v10 (sec 7.13) : "If a CGA Parameter Data Structure (PDS) is 
+	/*draft v12 (sec 7.13) : "If a CGA Parameter Data Structure (PDS) is 
 	  included in the message, then the host MUST verify if the actual 
 	  PDS contained in the message corresponds to the ULID(peer)."*/
 	if (psd_opts[PO_PDS] && !shim6_is_remote_cga(psd_opts[PO_PDS],
@@ -1302,12 +1294,12 @@ int rcv_r2(shim6hdr_r2* hdr,struct in6_addr* saddr,
 	if (ans<0) return 0;
 	
 
-	/*draft v9 : "If a CGA Parameter Data Structure (PDS) is included in 
+	/*draft v12 : "If a CGA Parameter Data Structure (PDS) is included in 
 	  the message, then the host MUST verify if the actual PDS contained 
 	  in the message corresponds to the ULID(peer)."*/
 	
 	if (psd_opts[PO_PDS] && !shim6_is_remote_cga(psd_opts[PO_PDS],
-						     saddr,0)) {
+						     &ctx->ulid_peer,0)) {
 		PDEBUG("%s: source ulid is not a valid CGA\n",__FUNCTION__);
 		return 0;
 	}
@@ -1384,11 +1376,11 @@ int rcv_ur(shim6hdr_ur* hdr,struct in6_addr* saddr, struct in6_addr* daddr)
 			  SHIM6_TYPE_UPD_REQ, ctx);
 	if (ans<0) return 0;
 	
-	/*draft v10 (sec 10.4) : "If a CGA Parameter Data Structure (PDS) is 
+	/*draft v12 (sec 10.4) : "If a CGA Parameter Data Structure (PDS) is 
 	  included in the message, then the host MUST verify if the actual 
 	  PDS contained in the message corresponds to the ULID(peer)."*/
 	if (psd_opts[PO_PDS] && !shim6_is_remote_cga(psd_opts[PO_PDS],
-						     saddr,0)) {
+						     &ctx->ulid_peer,0)) {
 		PDEBUG("%s: source ulid is not a valid CGA\n",__FUNCTION__);
 		return 0;
 	}
@@ -1525,6 +1517,7 @@ int rcv_ua(shim6hdr_ur* hdr,struct in6_addr* saddr, struct in6_addr* daddr)
 
 	ctx->ls_localp=new;
 	fill_path_array(&ctx->reap);
+	clear_report_lists(&ctx->reap);
 
 	return 0;
 }
