@@ -129,6 +129,9 @@ void reap_rcv_ka(struct reaphdr_ka* hdr);
  */
 int fill_path_array(struct reap_ctx* rctx);
 
+/*Ensures that the list of probe reports is cleared*/
+void clear_report_lists(struct reap_ctx* rctx);
+
 /*get or set the value of the send timer (in seconds)*/
 void set_tsend(uint16_t new);
 uint16_t get_tsend(void);
