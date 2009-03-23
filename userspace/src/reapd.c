@@ -353,8 +353,6 @@ void randomize_array(struct shim6_path* path_array, int size)
 {
 	int i,rand_index;
 
-	ASSERT(path_array!=NULL);
-
 	PDEBUG("Entering randomize_array\n");
 	for (i=0;i<size-1;i++) {
 		rand_index=i+random_int()%(size-i);
@@ -574,7 +572,13 @@ static void send_probe(struct reap_ctx* rctx, int isolated)
 		ipv6_addr_copy(&src_addr, &ctx->lp_local);
 	}
 	else {
-		ASSERT(rctx->path_array!=NULL);
+		/*Must handle a transient situation where we have 0 local
+		  locator*/
+		if (!rctx->path_array) {
+			PDEBUG("%s:Path array currently empty, "
+			       "cannot send probe\n",__FUNCTION__);
+			goto next_retransmit;
+		}
 		/*Is the current path already probed ?*/
 		if (rctx->path_array[rctx->cur_path_index].flags & PROBED)
 			next_path(rctx);
@@ -817,6 +821,15 @@ int fill_path_array(struct reap_ctx* rctx)
 				    NULL);
 	
 	if (nb_loc_locs<0) return -1;
+	
+	/*nb_loc_locs can be null if we have 0 local locators
+	  (possible in transient situations, especially with MIPv6)*/
+	if (nb_loc_locs==0) {
+		free(rctx->path_array);
+		rctx->path_array=NULL;
+		rctx->path_array_size=0;
+		return 0;
+	}
 
 	if (ctx->ls_peer.size*nb_loc_locs > MAX_SHIM6_PATHS) {
 		syslog(LOG_ERR,"%s:More paths than supported by LinShim6,"

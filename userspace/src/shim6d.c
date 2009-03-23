@@ -1641,27 +1641,18 @@ static void update_contexts(struct locset* prev, struct locset* new,
 				/*Changing the pointer*/
 				ctx->ls_localp=new;	
 
-				/*Checking if there is at least one remaining
-				  locator*/
-				if (get_nb_loc_locs(ctx,TRUE,NULL,NULL,
-						    NULL)==0) {
-					PDEBUG("No more locators, "
-					       "deleting ctx\n");
-					shim6_del_ctx(ctx);
-					return;
-				}
 				/*Updating the peer*/
 				send_ur(ctx,TRUE);
 				init_ur_timer(ctx);
 				/*If not a clone, updating REAP
 				  (if it is, waiting for the ack)*/
 				if (!new->clone) fill_path_array(&ctx->reap);
-				/*If we deleted the lp_peer, start exploring*/
+				/*If we deleted the lp_local, start exploring*/
 				if (removed_address && 
 				    ipv6_addr_equal(removed_address,
 						    &ctx->lp_local))
 					reap_init_explore(&ctx->reap);
-				/*If we use a clone, udpate the refcount*/
+				/*If we use a clone, update the refcount*/
 				if (new->clone) kref_get(&new->kref);
 			}
 		}
@@ -1828,7 +1819,7 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	
 	ASSERT(ls);
 
-	/*Looking for the correspondent entry. Once found, every entry
+	/*Looking for the corresponding entry. Once found, every entry
 	  after the one we want to delete is moved one slot left.*/
 	
 	for (locator=ls->lsetp,i=0; i<ls->size; locator++,i++) {
@@ -1840,10 +1831,15 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	}
 
 	/*It is possible that the locator is not found if we just 
-	  changed the adress from one iface to another (mip6d does that)*/
+	  changed the adress from one iface to another (mip6d does that)
+	  Reason: when the interface changes, new_addr is called with a
+	  new address. The effect is that the old address is automatically
+	  discarded. When afterwards a del_addr, in this special case new_addr
+	  already did the remove implicitly (by updating the ifidx actually)
+	  and del_addr cannot find it anymore.*/
 	if (!found) {
 		PDEBUG("Address to remove not found. "
-		       "Probably a iface change...");
+		       "Probably an iface change...");
 		return 0;
 	}
 	
@@ -1861,14 +1857,7 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 
 	/*Triggering the update request, here we set the same pointer as 
 	  previous and new, since we did not perform a clone*/
-	update_contexts(ls,ls,addr);
-	/*If the modified set is an HBA set, also update the corresponding
-	  contexts */
-	/*Probably a BUG: we do twice the same thing !!! I guess the intention
-	  was update the corresponding hba set, thus, not ls, but the list to
-	  which hs belongs*/
-	if (hs && !hs->cgacompat) update_contexts(ls,ls,addr);
-	
+	update_contexts(ls,ls,addr);	
 	return 0;
 }
 
