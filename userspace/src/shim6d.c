@@ -1855,11 +1855,7 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 
 	/*Triggering the update request, here we set the same pointer as 
 	  previous and new, since we did not perform a clone*/
-	update_contexts(ls,ls,addr);
-	/*If the modified set is an HBA set, also update the corresponding
-	  contexts */
-	if (hs && !hs->cgacompat) update_contexts(ls,ls,addr);
-	
+	update_contexts(ls,ls,addr);	
 	return 0;
 }
 
