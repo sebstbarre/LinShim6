@@ -1476,7 +1476,7 @@ int rcv_ua(shim6hdr_ur* hdr,struct in6_addr* saddr, struct in6_addr* daddr)
 	if (!in_loc_set(ctx->ls_localp,daddr,TRUE) || 
 	    !in_loc_set(&ctx->ls_peer,saddr,FALSE)) {
 		syslog(LOG_ERR,"%s : Either the source or the dest locator " 
-		       "of UR packet was not found in the locator sets\n",
+		       "of UA packet was not found in the locator sets\n",
 		       __FUNCTION__);
 		return -1;
 	}
