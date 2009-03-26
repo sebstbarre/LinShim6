@@ -1,3 +1,13 @@
+Version 0.10
+-------------
+
+***
+Major changes
+***
+
+- Added support for Context recovery procedure (R1bis/I2bis messages)
+- ULID pair option now implemented
+
 Version 0.9
 ------------
 
