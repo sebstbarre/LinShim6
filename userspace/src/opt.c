@@ -150,7 +150,7 @@ static int write_vali2_option(char* buf, struct option* opt)
 
 
 /*Validator option field - Message i2*/
-int add_vali2_option()
+int add_vali2_option(void)
 {
 	struct option* opt;
 
@@ -284,7 +284,7 @@ static int write_cga_pds_option(char* buf, struct option* opt)
 }
 
 /*CGA PDS option*/
-int add_cga_pds_option()
+int add_cga_pds_option(void)
 {
 	struct option* opt;
 	
@@ -323,7 +323,7 @@ static int write_cga_sign_option(char* buf, struct option* opt)
 }
 
 /*CGA signature option*/
-int add_cga_sign_option()
+int add_cga_sign_option(void)
 {
 	struct option* opt;
 	
@@ -360,6 +360,8 @@ failure:
 	return -1;
 }
 
+
+
 static int write_ka_option(char* buf, struct option* opt)
 {
 	struct shim6_opt* tl;
@@ -379,7 +381,7 @@ static int write_ka_option(char* buf, struct option* opt)
 /*Keepalive Timeout option*/
 int add_ka_option(void)
 {
-	struct option* opt;
+	struct option *opt;
 	ASSERT(ctx);
 	
 	/*If send timer is the default, the option is not
@@ -392,6 +394,45 @@ int add_ka_option(void)
 	opt->write=write_ka_option;
 	opt->total_length=8;
 	
+	return opt->total_length;
+failure:
+	free_all();
+	return -1;
+}
+
+static int write_ulid_option(char* buf, struct option* opt)
+{
+	struct shim6_opt* tl;
+	struct ulid_opt* v;
+	tl=(struct shim6_opt*) (buf);
+	v=(struct ulid_opt*)(tl+1);
+	tl->type=htons(SHIM6_TYPEOPT_ULID_PAIR);
+	tl->length=htons(opt->total_length-sizeof(struct shim6_opt));
+	
+	/*Filling the option*/
+	v->reserved=0;
+	ipv6_addr_copy(&v->src_ulid,&ctx->ulid_local.addr);
+	ipv6_addr_copy(&v->dst_ulid,&ctx->ulid_peer);
+	
+	return 0;
+}
+
+/*ULID pair option*/
+int add_ulid_option(void)
+{
+	struct option *opt;
+	ASSERT(ctx);
+
+	/*If the translation is not enabled (that is, if the ulids are the
+	  same as the preferred locators), the option is not necessary*/
+	if (!ctx->translate) return 0;
+
+	opt=malloc(sizeof(struct option));
+	if (!opt) goto failure;
+	list_add_tail(&opt->list,&options);
+	opt->write=write_ulid_option;
+	opt->total_length=40;
+
 	return opt->total_length;
 failure:
 	free_all();
@@ -469,11 +510,15 @@ int parse_options(struct shim6_opt* buf, char* packet_end, int msg_type,
 			if (opt_len!=4) break;
 			psd_opts[PO_KA]=tl;
 			break;
+		case SHIM6_TYPEOPT_ULID_PAIR:
+			if (opt_len!=36) break;
+			psd_opts[PO_ULID]=tl;
+			break;
 		default:
 			syslog(LOG_INFO, 
 			       "%s : unknown option field"
 			       " : %d\n",__FUNCTION__,ntohs(tl->type));
-			/*draft10, sec. 5.15: if the critical bit is set, drop
+			/*draft12, sec. 5.15: if the critical bit is set, drop
 			  the whole message, if not, just drop the option.
 			  TODO : Also send an error message if the C bit is 
 			  set*/

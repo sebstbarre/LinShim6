@@ -47,6 +47,8 @@ int add_cga_pds_option(void);
 int add_cga_sign_option(void);
 /*Keepalive Timeout option*/
 int add_ka_option(void);
+/*ULID pair option*/
+int add_ulid_option(void);
 
 /*Write all options in the packet to be sent
  *success: returns a pointer to the first byte following the last option
@@ -64,6 +66,7 @@ enum {
 	PO_PDS,
 	PO_SIGN,
 	PO_KA,
+	PO_ULID,
 	PO_MAX,
 };
 extern struct shim6_opt* psd_opts[PO_MAX];

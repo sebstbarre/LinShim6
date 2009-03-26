@@ -20,7 +20,7 @@
  *  
  *
  *
- *	date : June 2008
+ *	date : March 2009
  *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
@@ -256,7 +256,7 @@ static inline int send_r1( struct in6_addr* src_addr,
 	r1->resp_nonce=htonl(cur_resp_nonce);
 
 	/*Filling the validator option field. We do not use the opt.h 
-	  interface for this option, because it is short, used only here,
+	  interface for this option, because it is short
 	  and it needs too many arguments*/
 	tl=optionsp;
 	tl->type=htons(SHIM6_TYPEOPT_VALIDATOR);
@@ -278,9 +278,55 @@ static inline int send_r1( struct in6_addr* src_addr,
 	return 0;
 }
 
+
+static inline int send_r1bis(struct in6_addr* local_loc, 
+			     struct in6_addr* peer_loc,uint64_t pkt_ct) 
+{
+	shim6hdr_r1bis *r1bis;
+	union shim6_msgpp r1bis_msg={.r1bis=&r1bis};
+	struct shim6_opt* tl; /*tl part of the tlv option field*/
+	int total_length;
+	void* optionsp;
+	int opts_len=TOTAL_LENGTH(VAL_LENGTH);
+	
+	PDEBUG("Sending r1bis message...\n");	
+
+	if (shim6_alloc_send(sizeof(shim6hdr_r1bis),opts_len,
+			     SHIM6_TYPE_R1BIS,r1bis_msg,&optionsp)<0) {
+		syslog(LOG_ERR,"%s:shim6_alloc_send failed\n",__FUNCTION__);
+		return -1;
+	}
+	total_length=sizeof(shim6hdr_r1bis)+opts_len;
+
+	set_ct(pkt_ct,r1bis->ct_1,r1bis->ct_2,r1bis->ct_3);
+	r1bis->R=0;
+	r1bis->nonce=htonl(cur_resp_nonce);
+
+	/*Filling the validator option field. We do not use the opt.h 
+	  interface for this option, because it is short
+	  and it needs too many arguments*/
+	tl=optionsp;
+	tl->type=htons(SHIM6_TYPEOPT_VALIDATOR);
+	tl->length=htons(VAL_LENGTH);
+	
+	get_resp_hash((unsigned char*)(tl+1),ntohl(r1bis->nonce),pkt_ct,
+		      local_loc,peer_loc,FALSE);
+	memset(((char*)(tl+1))+VAL_LENGTH,0,PAD_LENGTH(VAL_LENGTH));
+
+	/*Computing checksum*/
+	r1bis->common.csum=ipsum_calculate((unsigned char*)r1bis,
+					(r1bis->common.hdrlen+1)*8,NULL);
+	
+	/*Sending the packet*/
+	
+	if (shim6_send(r1bis, total_length, local_loc, 
+		       peer_loc)<0) return -1;	
+	return 0;
+}
+
 static int send_i1(struct shim6_ctx* ctx) 
 {
-	shim6hdr_i1* i1;
+	shim6hdr_i1 *i1;
 	union shim6_msgpp i1_msg={.i1=&i1};
 	int total_length=sizeof(shim6hdr_i1);
 	
@@ -288,7 +334,7 @@ static int send_i1(struct shim6_ctx* ctx)
 	
 	if (shim6_alloc_send(sizeof(shim6hdr_i1),0,
 			     SHIM6_TYPE_I1, i1_msg,NULL)<0) {
-		syslog(LOG_ERR, "send_i1:shim6_alloc_send failed\n");
+		syslog(LOG_ERR, "%s:shim6_alloc_send failed\n",__FUNCTION__);
 		return -1;
 	}
 	
@@ -344,7 +390,7 @@ static int send_i2(struct shim6_ctx* ctx)
 	
 	if (shim6_alloc_send(sizeof(shim6hdr_i2),opts_len,
 			     SHIM6_TYPE_I2, i2_msg,&optionsp)<0) {
-		syslog(LOG_ERR, "send_i2:shim6_alloc_send failed\n");
+		syslog(LOG_ERR, "%s:shim6_alloc_send failed\n",__FUNCTION__);
 		return -1;
 	}
 
@@ -370,6 +416,71 @@ static int send_i2(struct shim6_ctx* ctx)
 		       &ctx->lp_peer)<0) return -1;
 	
 	ctx->state=SHIM6_I2_SENT;
+	
+	return 0;
+}
+
+static int send_i2bis(struct shim6_ctx* ctx)
+{
+	shim6hdr_i2bis* i2bis;
+	union shim6_msgpp i2bis_msg={.i2bis=&i2bis};
+	int opts_len=0; /*Total length of all options*/
+	int total_length;
+	int len;
+	void* optionsp;
+
+	PDEBUG("Sending i2bis message...\n");
+	
+	/*Preparing options*/
+	opt_init(ctx);
+	if ((len=add_vali2_option())<0) return -1;
+	opts_len+=len;
+	if ((len=add_loc_option())<0) return -1;
+	opts_len+=len;
+	if ((len=add_cga_pds_option())<0) return -1;
+	opts_len+=len;
+	if ((len=add_cga_sign_option())<0) return -1;
+	opts_len+=len;
+	if ((len=add_ka_option())<0) return -1;
+	opts_len+=len;
+	if ((len=add_ulid_option())<0) return -1;
+	opts_len+=len;
+		
+	if (shim6_alloc_send(sizeof(shim6hdr_i2bis),opts_len,
+			     SHIM6_TYPE_I2BIS, i2bis_msg,&optionsp)<0) {
+		syslog(LOG_ERR, "%s:shim6_alloc_send failed\n",__FUNCTION__);
+		return -1;
+	}
+
+	total_length=sizeof(shim6hdr_i2bis)+opts_len;	
+
+	/*Writing options. We need to do that before filling the main i2 part
+	 * for the checksum to be correct*/
+	if (!write_options(optionsp)) return -1;
+	
+	/*Eventually we fill the packet itself*/
+
+	set_ct(ctx->ct_local,i2bis->init_ct_1,i2bis->init_ct_2,
+	       i2bis->init_ct_3);
+
+	set_ct(ctx->ct_peer,i2bis->pkt_ct_1,i2bis->pkt_ct_2,i2bis->pkt_ct_3);
+	/*If we are retransmitting, we use the previously computed 
+	  nonce.*/
+	if (ctx->state!=SHIM6_I2BIS_SENT) ctx->init_nonce=random_int();
+	i2bis->init_nonce=htonl(ctx->init_nonce);
+	i2bis->resp_nonce=ctx->resp_nonce; /*Already in network byte order*/
+	i2bis->reserveda=i2bis->reservedb=0;
+	i2bis->R=0;
+	
+	i2bis->common.csum=ipsum_calculate((unsigned char*)i2bis,
+					   (i2bis->common.hdrlen+1)*8,NULL);
+	
+	/*Sending the packet*/
+	
+	if (shim6_send(i2bis, total_length, &ctx->lp_local, 
+		       &ctx->lp_peer)<0) return -1;
+	
+	ctx->state=SHIM6_I2BIS_SENT;
 	
 	return 0;
 }
@@ -503,7 +614,7 @@ static void shim6_retransmit(struct tq_elem* timer)
 	int (*send_fct)(struct shim6_ctx*);
 	struct shim6_ctx* ctx=container_of(timer,struct shim6_ctx,
 					   retransmit_timer);
-	__u8 random_byte;
+	uint8_t random_byte;
 	struct timespec timeout;
     
 	if (ctx->ur_pending) {
@@ -523,7 +634,7 @@ static void shim6_retransmit(struct tq_elem* timer)
 		return;
 	}
 
-	PDEBUG("retransmission of i1/i2 message...\n");
+	PDEBUG("retransmission of i1/i2/i2bis message...\n");
 	
 	/*Adjusting variables*/
 	if (ctx->state==SHIM6_I1_SENT) {
@@ -533,6 +644,10 @@ static void shim6_retransmit(struct tq_elem* timer)
 	else if (ctx->state==SHIM6_I2_SENT) {
 		max_retries=SHIM6_I2_RETRIES_MAX;
 		send_fct=send_i2;
+	}
+	else if (ctx->state==SHIM6_I2BIS_SENT) {
+		max_retries=SHIM6_I2BIS_RETRIES_MAX;
+		send_fct=send_i2bis;
 	}
 	else if (!ctx->ur_pending)
 		return; /*The state has changed while the timer was running,
@@ -562,7 +677,7 @@ static void shim6_retransmit(struct tq_elem* timer)
 		add_task_rel(&timeout,&ctx->retransmit_timer,
 			     shim6_holddown_handler);
 	}
-	else { /*state is SHIM6_I2_SENT*/
+	else { /*state is SHIM6_I2_SENT or SHIM6_I2BIS_SENT*/
 		send_i1(ctx); /*Back to I1_SENT state*/
 		if (ctx->r1_vldt) {
 			free(ctx->r1_vldt);
@@ -574,7 +689,7 @@ static void shim6_retransmit(struct tq_elem* timer)
 		ctx->nb_retries=0;
 		ctx->cur_timeout_val=SHIM6_I1_TIMEOUT; 
 		
-		random_byte=(__u8)random_int();
+		random_byte=(uint8_t)random_int();
 		tssetdsec(timeout, ctx->cur_timeout_val/2.0+
 			  (random_byte*ctx->cur_timeout_val)/256.0);
 		
@@ -793,11 +908,11 @@ shim6_loc_l* lookup_loc_l_ctx(struct in6_addr* loc, struct shim6_ctx* ctx)
  * (section 7.11)
  *
  */
-struct shim6_ctx* shim6_lookup_r1(__u32 init_nonce,
+static struct shim6_ctx* shim6_lookup_r1(uint32_t init_nonce,
 				  struct in6_addr* loc_local,
 				  struct in6_addr* loc_peer) 
 {
-	struct shim6_ctx* ctx;
+	struct shim6_ctx *ctx;
 	
 	/*lookup*/
 	list_for_each_entry(ctx,&init_list,init_list) {
@@ -813,11 +928,11 @@ struct shim6_ctx* shim6_lookup_r1(__u32 init_nonce,
 
 int rcv_r1(shim6hdr_r1* hdr, struct in6_addr* saddr, struct in6_addr* daddr)
 {
-	struct shim6_ctx* ctx;
+	struct shim6_ctx *ctx;
 	char* packet_end = (char*)hdr + ((hdr->common.hdrlen+1)<<3);
-	struct shim6_opt* tl; /*tl part of the tlv option field
+	struct shim6_opt *tl; /*tl part of the tlv option field
 				(r1 only supports the validator option)*/
-	unsigned char random_byte;
+	uint8_t random_byte;
 	struct timespec timeout;
 #ifdef SHIM6EVAL	
 	struct timespec before,after;
@@ -842,13 +957,13 @@ int rcv_r1(shim6hdr_r1* hdr, struct in6_addr* saddr, struct in6_addr* daddr)
 	
 	tl=(struct shim6_opt*)(hdr+1);
 
-       	/*else there is one, well given ?*/
+       	/*is there a validator, well given ?*/
 	if ((char*)tl+sizeof(struct shim6_opt)<=packet_end && 
 	    ntohs(tl->type)==SHIM6_TYPEOPT_VALIDATOR &&
 	    (char*)tl+TOTAL_LENGTH(ntohs(tl->length))==
 	    packet_end) {
-		ASSERT(!ctx->r1_vldt);
-		ctx->r1_vldt=malloc(TOTAL_LENGTH(ntohs(tl->length)));
+		ctx->r1_vldt=realloc(ctx->r1_vldt,
+				     TOTAL_LENGTH(ntohs(tl->length)));
 		memcpy(ctx->r1_vldt,tl,TOTAL_LENGTH(ntohs(tl->length)));
 	}
 	/*If no validator is supplied, the r1 is still considered Ok :
@@ -864,14 +979,14 @@ int rcv_r1(shim6hdr_r1* hdr, struct in6_addr* saddr, struct in6_addr* daddr)
 	del_task(&ctx->retransmit_timer);
 	
 	/*Starting retransmit timer
-	 * draft-proto-08, section 7.8 and 7.12 :
+	 * draft-proto-12, section 7.8 and 7.12 :
 	 * -use of binary exponential backoff
 	 * -randomize between 0.5 and 1.5 of computed time
 	 */
 	ctx->nb_retries=0;
 	ctx->cur_timeout_val=SHIM6_I2_TIMEOUT; 
 	
-	random_byte=(__u8)random_int();
+	random_byte=(uint8_t)random_int();
 	tssetdsec(timeout, ctx->cur_timeout_val/2.0+
 		  (random_byte*ctx->cur_timeout_val)/256.0);
 	
@@ -881,6 +996,100 @@ int rcv_r1(shim6hdr_r1* hdr, struct in6_addr* saddr, struct in6_addr* daddr)
 	clock_gettime(CLOCK_REALTIME,&after);
 	tssub(after,before,ctx->rcvr1_time);
 #endif
+	
+	return 0;
+}
+
+/*
+ * Returns the context if it exists, else NULL
+ * This lookup follows the lookup specs for reception of an R1bis message
+ * (section 7.18)
+ *
+ */
+static struct shim6_ctx* shim6_lookup_r1bis(uint64_t ct_peer,
+				     struct in6_addr* loc_local,
+				     struct in6_addr* loc_peer) 
+{
+	struct shim6_ctx *ctx;
+	int i;
+	
+	/*lookup*/
+	for (i=0;i<SHIM6_HASH_SIZE;i++)
+		list_for_each_entry(ctx,&ulid_hashtable[i],
+				    collide_ulid) {
+			if (ctx->ct_peer!=ct_peer) continue;
+			if (!ipv6_addr_equal(loc_local,&ctx->lp_local) ||
+			    !ipv6_addr_equal(loc_peer,&ctx->lp_peer)) continue;
+			/*OK, this is the right context*/
+			return ctx;
+		}
+	return NULL;
+}
+
+int rcv_r1bis(shim6hdr_r1bis* hdr, struct in6_addr* saddr, 
+	      struct in6_addr* daddr)
+{
+	struct shim6_ctx *ctx;
+	char* packet_end = (char*)hdr + ((hdr->common.hdrlen+1)<<3);
+	struct shim6_opt *tl; /*tl part of the tlv option field
+				(r1 only supports the validator option)*/
+	uint8_t random_byte;
+	struct timespec timeout;
+	uint64_t ct;
+
+	PDEBUG("receiving r1bis message\n");
+	
+	if (hdr->common.hdrlen<1) {
+		PDEBUG("r1bis length < 1\n");
+		return -1;
+	}
+	
+	get_ct(&ct, hdr->ct_1, hdr->ct_2, hdr->ct_3);
+	ctx=shim6_lookup_r1bis(ct,daddr,saddr);
+	if (!ctx) {
+		syslog(LOG_ERR, "%s : ctx not found\n",__FUNCTION__);
+		return -1;
+	}
+		
+	if (ctx->state!=SHIM6_ESTABLISHED) return 0;
+
+	tl=(struct shim6_opt*)(hdr+1);
+	
+       	/*is there a validator, well given ?*/
+	if ((char*)tl+sizeof(struct shim6_opt)<=packet_end && 
+	    ntohs(tl->type)==SHIM6_TYPEOPT_VALIDATOR &&
+	    (char*)tl+TOTAL_LENGTH(ntohs(tl->length))==
+	    packet_end) {
+		ctx->r1_vldt=realloc(ctx->r1_vldt,
+				     TOTAL_LENGTH(ntohs(tl->length)));
+		memcpy(ctx->r1_vldt,tl,TOTAL_LENGTH(ntohs(tl->length)));
+	}
+	/*If no validator is supplied, the r1 is still considered Ok :
+	 * It's up to the responder to guarantee its own security*/
+	else if ((char*)tl!=packet_end) {
+		PDEBUG("%s : bad option length",__FUNCTION__);
+		return -1;
+	}
+
+	ctx->resp_nonce=hdr->nonce;
+	send_i2bis(ctx);
+
+	/*Stopping current occurence of retransmit timer*/
+	del_task(&ctx->retransmit_timer);
+	
+	/*Starting retransmit timer
+	 * draft-proto-12, section 7.8 and 7.12 :
+	 * -use of binary exponential backoff
+	 * -randomize between 0.5 and 1.5 of computed time
+	 */
+	ctx->nb_retries=0;
+	ctx->cur_timeout_val=SHIM6_I2BIS_TIMEOUT; 
+	
+	random_byte=(uint8_t)random_int();
+	tssetdsec(timeout, ctx->cur_timeout_val/2.0+
+		  (random_byte*ctx->cur_timeout_val)/256.0);
+	
+	add_task_rel(&timeout,&ctx->retransmit_timer,shim6_retransmit);
 	
 	return 0;
 }
@@ -1075,7 +1284,7 @@ static void shim6_established(struct shim6_ctx* ctx)
 int rcv_i2(shim6hdr_i2* hdr,struct in6_addr* saddr, 
 	   struct in6_addr* daddr, int ifidx) 
 {
-	__u32 i2_resp_nonce;
+	uint32_t i2_resp_nonce;
 	/*Pointer to the first octet next the end of the packet*/
 	char* packet_end = (char*)hdr + ((hdr->common.hdrlen+1)<<3); 
 	uint64_t ct_peer;
@@ -1153,9 +1362,9 @@ int rcv_i2(shim6hdr_i2* hdr,struct in6_addr* saddr,
 	if (!ctx) return 0;
 
 	/*CGA pds allocation*/
-	if (ctx->pds) free(ctx->pds);
 	if (psd_opts[PO_PDS]) {
-		ctx->pds=malloc(TOTAL_LENGTH(ntohs(psd_opts[PO_PDS]->length)));
+		ctx->pds=realloc(ctx->pds,
+				 TOTAL_LENGTH(ntohs(psd_opts[PO_PDS]->length)));
 		if (!ctx->pds) goto failure;
 		memcpy(ctx->pds,psd_opts[PO_PDS],
 		       TOTAL_LENGTH(ntohs(psd_opts[PO_PDS]->length)));
@@ -1226,6 +1435,164 @@ failure:
 	return -1;
 }
 
+
+int rcv_i2bis(shim6hdr_i2bis* hdr,struct in6_addr* saddr, 
+	      struct in6_addr* daddr, int ifidx)
+{
+	uint32_t i2_resp_nonce;
+	/*Pointer to the first octet next the end of the packet*/
+	char* packet_end = (char*)hdr + ((hdr->common.hdrlen+1)<<3); 
+	uint64_t ct_peer;
+	unsigned char test_hash[VAL_LENGTH];
+	int prev;
+	int validator_ok=FALSE;
+	int state,new;       
+	struct shim6_ctx *ctx=NULL;
+	int ans;
+	struct ka_opt *ka;
+	struct ulid_opt *ulids;
+	struct in6_addr *ulid_local,*ulid_peer;
+
+	PDEBUG("receiving i2bis message\n");
+	
+	if (hdr->common.hdrlen<2) {
+		PDEBUG("i2bis length < 3\n");
+		return -1;
+	}
+
+	i2_resp_nonce=ntohl(hdr->resp_nonce);
+	
+	/*Verifying age of resp nonce*/
+	if (i2_resp_nonce != cur_resp_nonce && 
+	    i2_resp_nonce != cur_resp_nonce-1) {
+		PDEBUG("%s:resp nonce not in valid nonce interval\n",
+		       __FUNCTION__);
+		goto failure;
+	}
+
+	/*parsing options*/
+	ans=parse_options((struct shim6_opt*) (hdr+1),packet_end,
+			  SHIM6_TYPE_I2BIS,
+			  NULL);
+	if (ans<0) return 0;
+
+	/*Getting ulid pair*/
+	if (psd_opts[PO_ULID]) {
+		ulids=(struct ulid_opt*)(psd_opts[PO_ULID]+1);
+		ulid_local=&ulids->dst_ulid;
+		ulid_peer=&ulids->src_ulid;
+	}
+	else {
+		ulid_local=daddr;
+		ulid_peer=saddr;
+	}
+
+	
+	/*Validator verification*/
+	ASSERT(psd_opts[PO_VLDT]); /*checked by parse_options*/
+	for (prev=0;prev<=1;prev++) { /*Tries prev=FALSE, then TRUE*/
+		get_resp_hash(test_hash,i2_resp_nonce,ct_peer,
+			      daddr,saddr,prev);
+		if (!memcmp(test_hash,psd_opts[PO_VLDT]+1, VAL_LENGTH)) {
+			validator_ok=TRUE;
+			break;
+		
+		}
+	}
+	if (!validator_ok) {
+		PDEBUG("%s:invalid sha1 hash\n",__FUNCTION__);
+		return 0;
+	}
+
+	/*draft v12 (sec 7.20) : "If a CGA Parameter Data Structure (PDS) is 
+	  included in the message, then the host MUST verify if the actual 
+	  PDS contained in the message corresponds to the ULID(peer)."*/
+	if (psd_opts[PO_PDS] && !shim6_is_remote_cga(psd_opts[PO_PDS],
+						     ulid_peer,0)) {
+		PDEBUG("%s: source ulid is not a valid CGA\n",__FUNCTION__);
+		return 0;
+	}
+
+	/*Context lookup*/
+	ctx=lookup_ulid(ulid_peer,ulid_local);
+
+	if (!ctx) {
+		shim6_loc_l *lulid_local=lookup_loc_l(ulid_local,NULL);;
+		shim6_loc_l dummy_lulid_local;
+		/*If the local ulid is not anymore in the local locator list,
+		  use a dummy lulid_local structure*/
+		if (!lulid_local) {
+			PDEBUG("%s:ULID removed from structures, using dummy\n",
+				__FUNCTION__);
+			bzero(&dummy_lulid_local,sizeof(dummy_lulid_local));
+			ipv6_addr_copy(&dummy_lulid_local.addr,ulid_local);
+			dummy_lulid_local.valid_method=get_valid_method(
+				ulid_local,0,&dummy_lulid_local.hs);
+			lulid_local=&dummy_lulid_local;
+		}
+		
+		ctx=__init_shim6_ctx(lulid_local,ulid_peer,&new);
+		ASSERT(new);
+		if (!ctx) return 0;
+	}
+	else new=FALSE;
+
+	get_ct(&ct_peer, hdr->init_ct_1, hdr->init_ct_2, hdr->init_ct_3);
+
+	/*CGA pds allocation*/
+	if (psd_opts[PO_PDS]) {
+		ctx->pds=realloc(ctx->pds,
+				 TOTAL_LENGTH(ntohs(psd_opts[PO_PDS]->length)));
+		if (!ctx->pds) goto failure;
+		memcpy(ctx->pds,psd_opts[PO_PDS],
+		       TOTAL_LENGTH(ntohs(psd_opts[PO_PDS]->length)));
+	}
+
+	/*ka option?*/
+	if (psd_opts[PO_KA]) {
+		ka=(struct ka_opt*)(psd_opts[PO_KA]+1);
+		ctx->reap.tka=ntohs(ka->tka);
+	}
+
+	/*We need to work on a copy of state, because it may change
+	  during the switch*/
+	state=ctx->state;
+	switch (state) { 
+	case SHIM6_IDLE:
+		if (psd_opts[PO_LOC] && get_locators(psd_opts[PO_LOC],ctx)<0)
+			goto failure;
+		ctx->ct_peer=ct_peer;
+		context_confusion(ctx);
+		shim6_established(ctx);
+		send_r2(hdr->init_nonce,ctx);
+		break;
+	case SHIM6_I1_SENT:
+	case SHIM6_ESTABLISHED:
+	case SHIM6_I2_SENT:
+	case SHIM6_I2BIS_SENT:
+		if (lookup_loc_p(saddr,ctx) ||
+		    (psd_opts[PO_LOC] && in_loc_option(psd_opts[PO_LOC],
+						       saddr))) {
+			if (psd_opts[PO_LOC] && 
+			    get_locators(psd_opts[PO_LOC],ctx)<0)
+				goto failure;
+			ctx->ct_peer=ct_peer;
+			context_confusion(ctx);
+			send_r2(hdr->init_nonce,ctx);
+			if (state==SHIM6_I1_SENT) {
+				shim6_established(ctx);
+			}
+		}
+		else goto failure;
+		break;		
+	}
+
+	return 0;
+failure:
+	if (ctx && new) 
+		shim6_del_ctx(ctx);
+	return -1;
+}
 
 int rcv_r2(shim6hdr_r2* hdr,struct in6_addr* saddr, 
 	   struct in6_addr* daddr) 
@@ -1472,12 +1839,13 @@ int rcv_ua(shim6hdr_ur* hdr,struct in6_addr* saddr, struct in6_addr* daddr)
 	}
 
 	/*Checking that src addr is in local set, and dst addr is in peer
-	  set (draft version 10, section 10.4)*/
+	  set (draft version 12, section 10.4)*/
 	if (!in_loc_set(ctx->ls_localp,daddr,TRUE) || 
 	    !in_loc_set(&ctx->ls_peer,saddr,FALSE)) {
 		syslog(LOG_ERR,"%s : Either the source or the dest locator " 
 		       "of UA packet was not found in the locator sets\n",
 		       __FUNCTION__);
+		send_r1bis(daddr,saddr,ct);
 		return -1;
 	}
 	if (ctx->state==SHIM6_I1_SENT) return 0;
@@ -1763,6 +2131,7 @@ static int new_addr(struct in6_addr* addr, int ifidx)
 		APPLOG_NOMEM();
 		return -1;
 	}
+	ls->size_not_broken++;
 	bzero(&ls->lsetp[ls->size-1],sizeof(shim6_loc_l));
 	ipv6_addr_copy(&ls->lsetp[ls->size-1].addr, addr);
 	ls->lsetp[ls->size-1].ifidx=ifidx;
@@ -1810,8 +2179,6 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	int i,found=0;
 
 	valid_method=get_valid_method(addr,ifidx,&hs);
-	PDEBUG("Removing address %s from local locator structure\n",
-	       addrtostr(addr));
 
 	/*Oppositely to new_addr, we do not need here to create a clone
 	 * of the loc list, since anyway, the effect of removing a locator
@@ -1830,14 +2197,27 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 			ipv6_addr_copy(&(locator-1)->addr,&locator->addr);
 		}
 		else if (ipv6_addr_equal(addr,&locator->addr) &&
-			 locator->ifidx==ifidx) found=1;
+			 locator->ifidx==ifidx) {
+			found=1;
+			if (locator->refcnt!=0) {
+				PDEBUG("Address %s marked as broken\n",
+				       addrtostr(addr));
+				locator->broken=1;
+				ls->size_not_broken--;
+				return 0;
+			}
+			else 
+				PDEBUG("Removing address %s from local "
+				       "locator structure\n",
+				       addrtostr(addr));			
+		}
 	}
 
 	/*It is possible that the locator is not found if we just 
 	  changed the adress from one iface to another (mip6d does that)*/
 	if (!found) {
 		PDEBUG("Address to remove not found. "
-		       "Probably a iface change...");
+		       "Probably an iface change...");
 		return 0;
 	}
 	
@@ -2153,6 +2533,7 @@ static struct shim6_ctx* __init_shim6_ctx(struct shim6_loc_l* ulid_local,
 	uint64_t ct;
 	struct hba_set* hs;
 	int valid_method;
+	struct shim6_loc_l *lulid_local;
 
 	/*Maybe we are receiving a request for an already existing context*/
 	ctx=lookup_ulid(ulid_peer,&ulid_local->addr);
@@ -2186,6 +2567,8 @@ static struct shim6_ctx* __init_shim6_ctx(struct shim6_loc_l* ulid_local,
 	/*ulids equal locators, and both equal those of 
 	  the packet to be sent.*/
 	memcpy(&ctx->ulid_local,ulid_local,sizeof(*ulid_local));
+ 	lulid_local=lookup_loc_l(&ulid_local->addr,NULL);
+	if (lulid_local) lulid_local->refcnt++;
 	ipv6_addr_copy(&ctx->ulid_peer,ulid_peer);
 	
 	ipv6_addr_copy(&ctx->lp_local,&ulid_local->addr);
@@ -2356,6 +2739,7 @@ void shim6_free_ctx(struct tq_elem* timer)
 
 void shim6_del_ctx(struct shim6_ctx* ctx)
 {
+	struct shim6_loc_l *lulid_local;
 	PDEBUG("Entering %s\n",__FUNCTION__);
 
 	/*Release the reap context elements*/
@@ -2378,6 +2762,15 @@ void shim6_del_ctx(struct shim6_ctx* ctx)
 	if (ctx->pds) free(ctx->pds);
 	if (ctx->r1_vldt) free(ctx->r1_vldt);
 	if (ctx->ls_localp->single) free(ctx->ls_localp);
+ 	lulid_local=lookup_loc_l(&ctx->ulid_local.addr,NULL);
+	if (lulid_local) {
+		lulid_local->refcnt--;
+		if (lulid_local->refcnt==0 && lulid_local->broken) 
+			/*broken => not useable as locator
+			 *refcnt is 0 => not used anymore as a ULID
+			 * ==> This address can be completely removed*/
+			del_addr(&lulid_local->addr,lulid_local->ifidx);
+	}
 	
 	if (del_task_and_free(&ctx->retransmit_timer, shim6_free_ctx,ctx)==1)
 		ctx->refcnt++;
@@ -2470,11 +2863,11 @@ int get_nb_loc_locs(struct shim6_ctx* ctx, int newest, int* all_nonsecure,
 				      locators*/
 		if (useall_locators) *useall_locators=1;
 		list_for_each_entry_all(ls_it,&ls->list,list,list_cnt) {
-			nb_locs+=ls_it->size;
+			nb_locs+=ls_it->size_not_broken;
 		}
 	}
 	else {
-			nb_locs=ls->size; 
+			nb_locs=ls->size_not_broken; 
 	}
 	
 #ifdef SHIM6EVAL	
@@ -2486,7 +2879,7 @@ int get_nb_loc_locs(struct shim6_ctx* ctx, int newest, int* all_nonsecure,
 		if (useall_locators) *useall_locators=1;
 		nb_locs=0;
 		list_for_each_entry_all(ls_it,&ls->list,list,list_cnt) {
-			nb_locs+=ls_it->size;
+			nb_locs+=ls_it->size_not_broken;
 		}
 		if (all_nonsecure) *all_nonsecure=1;
 	}
@@ -2531,6 +2924,7 @@ int get_loc_locs_array(struct shim6_ctx* ctx, int newest,
 		list_for_each_entry_all(ls_it,&ls->list,list,list_cnt) {
 			for (i=0;i<ls_it->size;i++,j++) {
 				shim6_loc_l* loc = ls_it->lsetp+i;
+				if (loc->broken) {j--;continue;}
 				ipv6_addr_copy(&addr_array[j],&loc->addr);
 				if (verif_method) verif_method[j]=0;		
 			}
@@ -2546,6 +2940,7 @@ int get_loc_locs_array(struct shim6_ctx* ctx, int newest,
 		list_for_each_entry_all(ls_it,&ls->list,list,list_cnt) {
 			for (i=0;i<ls_it->size;i++,j++) {
 				shim6_loc_l* loc = ls_it->lsetp+i;
+				if (loc->broken) {j--;continue;}
 				ipv6_addr_copy(&addr_array[j],&loc->addr);
 				if (loc->hs && loc->hs==ctx->ulid_local.hs) {
 					if (verif_method) 
@@ -2564,14 +2959,15 @@ int get_loc_locs_array(struct shim6_ctx* ctx, int newest,
 		/*Only the locators of that set may be used (either pure
 		  HBA, or specifically alloc'ed locset due to unsecured
 		  lulid (case of ctx->ls_localp->single)*/
-		for (i=0;i<ls->size;i++) {
+		for (i=0,j=0;i<ls->size;i++,j++) {
 			shim6_loc_l* loc = ls->lsetp+i;
-			ipv6_addr_copy(&addr_array[i], &loc->addr);
+			if (loc->broken) {j--;continue;}
+			ipv6_addr_copy(&addr_array[j], &loc->addr);
 			if (verif_method) {
 				/*In case of single loc locset,
 				  no locset option must be sent*/
 				ASSERT(!ctx->ls_localp->single);
-				verif_method[i]=SHIM6_HBA;
+				verif_method[j]=SHIM6_HBA;
 			}
 		}
 	}

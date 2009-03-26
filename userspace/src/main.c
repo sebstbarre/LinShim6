@@ -385,10 +385,21 @@ int main(int argc, char* argv[]) {
 				       &pkt_info->ipi6_addr, 
 				       pkt_info->ipi6_ifindex);
 				break;
+			case SHIM6_TYPE_I2BIS:
+				rcv_i2bis((shim6hdr_i2bis*) shim6hdr,
+					  &addr.sin6_addr,
+					  &pkt_info->ipi6_addr, 
+					  pkt_info->ipi6_ifindex);
+				break;
 			case SHIM6_TYPE_R1:
 				rcv_r1((shim6hdr_r1*) shim6hdr,&addr.sin6_addr,
 					&pkt_info->ipi6_addr);
 				break;
+			case SHIM6_TYPE_R1BIS:
+				rcv_r1bis((shim6hdr_r1bis*) shim6hdr,
+					  &addr.sin6_addr,
+					  &pkt_info->ipi6_addr);
+				break;				
 			case SHIM6_TYPE_R2:
 				rcv_r2((shim6hdr_r2*) shim6hdr,&addr.sin6_addr,
 				       &pkt_info->ipi6_addr);
