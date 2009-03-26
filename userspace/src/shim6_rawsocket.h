@@ -20,14 +20,16 @@
 /*Special union used to pass the argument to shim6_alloc_send, without
   breaking strict-aliasing rules of gcc.*/
 union shim6_msgpp {
-	shim6hdr_i1** i1;
-	shim6hdr_i2** i2;
-	shim6hdr_r1** r1;
-	shim6hdr_r2** r2;
-	shim6hdr_ur** ur;
-	shim6hdr_ua** ua;
-	reaphdr_ka**  ka;
-	reaphdr_probe** probe;
+	shim6hdr_i1**    i1;
+	shim6hdr_i2**    i2;
+	shim6hdr_i2bis** i2bis;
+	shim6hdr_r1**    r1;
+	shim6hdr_r1bis** r1bis;
+	shim6hdr_r2**    r2;
+	shim6hdr_ur**    ur;
+	shim6hdr_ua**    ua;
+	reaphdr_ka**     ka;
+	reaphdr_probe**  probe;
 };
 
 /*raw socket for the shim6 protocol*/

@@ -88,6 +88,11 @@ struct shim6_loc_l {
 	int              ifidx; /*Interface index*/
 	uint8_t          valid_method;
 	struct hba_set*  hs; /*Used if valid_method is SHIM6_HBA*/	
+	uint8_t          broken; /*1 if locator is broken but can still be used
+				   as a ulid.*/
+	int              refcnt; /*Number of contexts that use this address as 
+				   ULID. When refcnt reaches 0 and broken is 1,
+				   the address must be removed*/
 };
 
 /*This is defined for the seek of following the same scheme as in the kernel
@@ -102,6 +107,8 @@ typedef struct shim6_loc_l shim6_loc_l;
 struct locset {
 	struct list_head     list;
 	int                  size; /*Number of locators stored in set*/
+	int                  size_not_broken; /*Number of locators in the set
+						that are not marked as broken*/
 	uint32_t             gen_number;
 	union {
 		shim6_loc_l* lsetp;
@@ -238,12 +245,13 @@ struct shim6hdr_i1
 	uint32_t     nonce;
 };
 
-/*Same structure for i1, r2, update request and update aknowledgement 
-  messages*/
+/*Same structure for i1, r2, update request, update aknowledgement and
+  r1bis messages*/
 typedef struct shim6hdr_i1 shim6hdr_i1;
 typedef struct shim6hdr_i1 shim6hdr_r2;
 typedef struct shim6hdr_i1 shim6hdr_ur; 
 typedef struct shim6hdr_i1 shim6hdr_ua;
+typedef struct shim6hdr_i1 shim6hdr_r1bis;
 
 struct shim6hdr_r1
 {
@@ -275,6 +283,40 @@ struct shim6hdr_i2
 };
 
 typedef struct shim6hdr_i2 shim6hdr_i2;
+
+struct shim6hdr_i2bis
+{
+	struct shim6hdr_ctl common;
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+        uint8_t      init_ct_1:7,
+		     R:1; /*Reserved : zero on transmit*/
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	uint8_t      R:1, /*Reserved : zero on transmit*/
+		     init_ct_1:7;
+#else
+#error	"Unknown endianness : The configure script did not run correctly"
+#endif	
+	uint8_t      init_ct_2;
+	uint32_t     init_ct_3;
+	uint32_t     init_nonce;
+	uint32_t     resp_nonce;
+	uint32_t     reserveda;
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	uint32_t     pkt_ct_2:8,
+	             pkt_ct_1:7,
+		     reservedb:17;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	uint32_t     reservedb:17,
+		     pkt_ct_1:7,
+		     pkt_ct_2:8;
+	
+#else
+#error	"Unknown endianness : The configure script did not run correctly"
+#endif
+	uint32_t     pkt_ct_3;
+};
+
+typedef struct shim6hdr_i2bis shim6hdr_i2bis;
 
 static inline struct shim6_ctx* shim6_ctx(struct reap_ctx* rctx)
 {
@@ -331,8 +373,12 @@ void shim6_del_loc_addr(struct nlmsghdr* nlhdr);
 /*Handlers for messages received from the network*/
 int rcv_i1(shim6hdr_i1* hdr, struct in6_addr* saddr, struct in6_addr* daddr);
 int rcv_r1(shim6hdr_r1* hdr, struct in6_addr* saddr, struct in6_addr* daddr);
+int rcv_r1bis(shim6hdr_r1bis* hdr, struct in6_addr* saddr, 
+	      struct in6_addr* daddr);
 int rcv_i2(shim6hdr_i2* hdr,struct in6_addr* saddr, 
 	   struct in6_addr* daddr, int ifidx);
+int rcv_i2bis(shim6hdr_i2bis* hdr,struct in6_addr* saddr, 
+	      struct in6_addr* daddr, int ifidx);
 int rcv_r2(shim6hdr_r2* hdr,struct in6_addr* saddr, struct in6_addr* daddr);
 int rcv_ur(shim6hdr_ur* hdr,struct in6_addr* saddr, struct in6_addr* daddr);
 int rcv_ua(shim6hdr_ur* hdr,struct in6_addr* saddr, struct in6_addr* daddr);
@@ -383,6 +429,12 @@ struct ka_opt
 	uint16_t  tka;
 };
 
+struct ulid_opt
+{
+	uint16_t         reserved;
+	struct in6_addr  src_ulid;
+	struct in6_addr  dst_ulid;
+};
 
  
 /* As loc option fields have variable lengths,
