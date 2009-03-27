@@ -157,7 +157,7 @@ int nb_glob_locs(void)
 	struct locset* ls;
 
 	list_for_each_entry_all(ls,&glob_loc_sets.list,list,list_cnt) {
-		nb+=ls->size;
+		nb+=ls->size_not_broken;
 	}
 	return nb;
 }
@@ -2200,6 +2200,7 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 				       addrtostr(addr));
 				locator->broken=1;
 				ls->size_not_broken--;
+				ls->gen_number=glob_gen_nb++;
 				return 0;
 			}
 			else 
