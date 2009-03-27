@@ -2142,6 +2142,8 @@ static int new_addr(struct in6_addr* addr, int ifidx)
 		ls->lsetp[ls->size-1].valid_method=valid_method;
 		ls->lsetp[ls->size-1].hs=hs;
 	}
+	else locator->broken=FALSE;
+
 	ls->gen_number=glob_gen_nb++;
 	ls->size_not_broken++;
 		
