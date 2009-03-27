@@ -2080,13 +2080,16 @@ static int new_addr(struct in6_addr* addr, int ifidx)
 	
 	/*Check if the address has already been registered*/
 	if ((locator=lookup_loc_l(addr,NULL))) {
-		if (locator->ifidx==ifidx)
-			PDEBUG("%s: Address already registered\n",
-			       __FUNCTION__);
+		if (locator->ifidx==ifidx) {
+			if (locator->broken) locator->broken=0;
+			else PDEBUG("%s: Address already registered\n",
+				    __FUNCTION__);
+		}
 		else {
 			PDEBUG("%s: Address ifidx adapted from %d"
 			       "to %d\n",__FUNCTION__,locator->ifidx,ifidx);
 			locator->ifidx=ifidx;
+			locator->broken=0;
 		}
 			
 		return 0;
@@ -2202,6 +2205,7 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 			if (locator->refcnt!=0) {
 				PDEBUG("Address %s marked as broken\n",
 				       addrtostr(addr));
+				ASSERT(!locator->broken);
 				locator->broken=1;
 				ls->size_not_broken--;
 				ls->gen_number=glob_gen_nb++;
