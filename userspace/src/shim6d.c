@@ -2077,11 +2077,12 @@ static int new_addr(struct in6_addr* addr, int ifidx)
 	struct hba_set *hs;
 	uint8_t valid_method=0;
 	shim6_loc_l *locator;
+	int unbreak=FALSE;
 	
 	/*Check if the address has already been registered*/
 	if ((locator=lookup_loc_l(addr,NULL))) {
 		if (locator->ifidx==ifidx) {
-			if (locator->broken) locator->broken=0;
+			if (locator->broken) unbreak=TRUE;
 			else PDEBUG("%s: Address already registered\n",
 				    __FUNCTION__);
 		}
@@ -2089,10 +2090,10 @@ static int new_addr(struct in6_addr* addr, int ifidx)
 			PDEBUG("%s: Address ifidx adapted from %d"
 			       "to %d\n",__FUNCTION__,locator->ifidx,ifidx);
 			locator->ifidx=ifidx;
-			locator->broken=0;
+			if (locator->broken) unbreak=TRUE;
 		}
 			
-		return 0;
+		if (!unbreak) return 0;
 	}
 	
 	if (IN6_IS_ADDR_MULTICAST(addr))
@@ -2129,18 +2130,25 @@ static int new_addr(struct in6_addr* addr, int ifidx)
 	}
 			
 	/*Now that the structure is cloned, we can modify it*/
-	ls->lsetp=realloc(ls->lsetp,(++ls->size)*sizeof(*ls->lsetp));
-	if (!ls->lsetp) {
-		APPLOG_NOMEM();
-		return -1;
+	if (!unbreak) {
+		/*If the locator was not present at all, we must create
+		  an entry for the new locator, but if it was present and
+		  marked broken, we must just remove the broken flag and
+		  update glob_gen_nb and size_not_broken*/
+		ls->lsetp=realloc(ls->lsetp,(++ls->size)*sizeof(*ls->lsetp));
+		if (!ls->lsetp) {
+			APPLOG_NOMEM();
+			return -1;
+		}
+		bzero(&ls->lsetp[ls->size-1],sizeof(shim6_loc_l));
+		ipv6_addr_copy(&ls->lsetp[ls->size-1].addr, addr);
+		ls->lsetp[ls->size-1].ifidx=ifidx;
+		ls->lsetp[ls->size-1].valid_method=valid_method;
+		ls->lsetp[ls->size-1].hs=hs;
 	}
-	ls->size_not_broken++;
-	bzero(&ls->lsetp[ls->size-1],sizeof(shim6_loc_l));
-	ipv6_addr_copy(&ls->lsetp[ls->size-1].addr, addr);
-	ls->lsetp[ls->size-1].ifidx=ifidx;
-	ls->lsetp[ls->size-1].valid_method=valid_method;
-	ls->lsetp[ls->size-1].hs=hs;
 	ls->gen_number=glob_gen_nb++;
+	ls->size_not_broken++;
+		
 
  	/*If the modified locator set is an HBA set, then
 	 * we must also update the gen number of the main set (index 0), 
