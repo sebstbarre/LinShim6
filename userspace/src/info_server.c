@@ -233,7 +233,7 @@ static void __one_state_info(int fd, struct shim6_ctx* ctx)
 		dprintf(fd,"BUG : get_loc_locs_array failed !!\n");
 	else {
 		dprintf(fd,"Local locator list : \n");
-		for (i=0;i<ctx->ls_localp->size;i++) {
+		for (i=0;i<nb_loc_locs;i++) {
 			dprintf(fd,"\t%s ",
 				addrtostr(&locaddr_array[i]));
 			__print_valid_type(fd,valid_method[i]);
