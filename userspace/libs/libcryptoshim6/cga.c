@@ -85,6 +85,8 @@ static int is_lcl_hba(struct in6_addr *a, struct cga_params *p,
  * Returns - false if the address is neither an HBA nor a CGA
  *         - returns SHIM6_HBA if it is an HBA
  *         - returns SHIM6_CGA if it is a CGA
+ *         - in case of error, returns -1 and if hs is not NULL, 
+ *           *@hs is set to NULL
  * 
  */
 int get_valid_method(struct in6_addr *a, int ifidx, struct hba_set** hs)
@@ -93,7 +95,10 @@ int get_valid_method(struct in6_addr *a, int ifidx, struct hba_set** hs)
 	struct cga_params *p=find_params_byaddr(a, ifidx);
 	struct cga_parsed_params ws[1];
 
-	ASSERT(p);
+	if (!p) {
+		if (hs) *hs=NULL;
+		return -1;
+	}
 	
 	if (hs) *hs=NULL;
 	if (p->hs && is_lcl_hba(a,p, hs)) return SHIM6_HBA;
@@ -204,7 +209,7 @@ cga_get_params(struct in6_addr *addr, int ifidx)
 	struct cga_parsed_params ws[1];
 	struct cga_params *p = find_params_byaddr(addr, ifidx);
 	
-	ASSERT(p);
+	if (!p) return NULL;
 
 	ws->buf = p->der;
 	ws->dlen = p->dlen;
