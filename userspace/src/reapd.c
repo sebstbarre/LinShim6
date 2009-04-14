@@ -766,6 +766,8 @@ static void send_probe(struct reap_ctx* rctx, int isolated)
 
 void reap_init_explore(struct reap_ctx* rctx)
 {
+	if (!rctx->ready) return;
+
 	PDEBUG("Entering %s\n",__FUNCTION__);
 
 	if (rctx->state!=REAP_OPERATIONAL) {
@@ -814,6 +816,8 @@ int fill_path_array(struct reap_ctx* rctx)
 	int nb_loc_locs;
 	int all_nonsecure,useall_locators;
 	struct in6_addr* locaddr_array=NULL;
+	
+	if (!rctx->ready) return 0;
 	
 	PDEBUG("Entering fill_path_array\n");
 
@@ -916,6 +920,7 @@ void init_reap_ctx(struct reap_ctx* rctx)
 	init_timer(&rctx->send_timer);
 	init_timer(&rctx->end_explore_timer);
 
+	rctx->ready=1;
 	return;
 }
 

@@ -2010,8 +2010,18 @@ static void update_contexts(struct locset* prev, struct locset* new,
 				ctx->ls_localp=new;	
 
 				/*Updating the peer*/
-				send_ur(ctx,TRUE);
-				init_ur_timer(ctx);
+				switch(ctx->state) {
+				case SHIM6_ESTABLISHED: 
+					send_ur(ctx,TRUE);
+					init_ur_timer(ctx);
+					break;
+				case SHIM6_I2_SENT:
+					send_i2(ctx);
+					break;
+				case SHIM6_I2BIS_SENT:
+					send_i2bis(ctx);
+					break;
+				}
 				/*If not a clone, updating REAP
 				  (if it is, waiting for the ack)*/
 				if (!new->clone) fill_path_array(&ctx->reap);

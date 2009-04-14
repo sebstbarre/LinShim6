@@ -73,6 +73,9 @@ struct reap_ctx {
 
 	/*sent probes list*/
 	struct list_head    sent_probes;
+/*flags*/
+	uint8_t             ready:1; /*1 if the reap context has been 
+				       initialized*/
 	
 #ifdef LOG_EXPL_TIME
 	struct timespec     expl_time; /*to record exploration start 
