@@ -2207,7 +2207,7 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	 * account the ifidx. 
 	 */		
 	list_for_each_entry_all(ls_it,&ls->list,list,list_cnt) {
-		for (locator=ls->lsetp,i=0; i<ls->size; locator++,i++) {
+		for (locator=ls_it->lsetp,i=0; i<ls_it->size; locator++,i++) {
 			if (found) {
 				ipv6_addr_copy(&(locator-1)->addr,
 					       &locator->addr);
@@ -2220,15 +2220,15 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 					       addrtostr(addr));
 					ASSERT(!locator->broken);
 					locator->broken=1;
-					ls->size_not_broken--;
-					ls->gen_number=glob_gen_nb++;
+					ls_it->size_not_broken--;
+					ls_it->gen_number=glob_gen_nb++;
 					return 0;
 				}
 				else 
 					PDEBUG("Removing address %s from local "
 					       "locator structure\n",
 					       addrtostr(addr));
-			}			
+			}
 		}
 		if (valid_method!=-1 || found) break;
 	}

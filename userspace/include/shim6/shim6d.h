@@ -4,7 +4,7 @@
  *	Author:
  *	Sébastien Barré		<sebastien.barre@uclouvain.be>
  *
- *	date : December 2007
+ *	date : April 2009
  *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
@@ -167,7 +167,7 @@ struct shim6_ctx {
 
 	unsigned short      state;
 	
-	uint32_t               fii; /*Forked Instance Identifier; 
+	uint32_t            fii; /*Forked Instance Identifier; 
 				   ignored for now*/
 
 /*Locators info for the peer*/
