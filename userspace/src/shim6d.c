@@ -1267,6 +1267,7 @@ static void shim6_established(struct shim6_ctx* ctx)
 	
 	/*Reap initialization*/
 	init_reap_ctx(&ctx->reap);
+
 	/*Creating a new kernel context*/
 	xfrm_add_shim6_ctx(&ctx->ulid_local.addr, &ctx->ulid_peer,
 			   ctx->ct_local,ctx->ct_peer, ctx->reap.path_array,

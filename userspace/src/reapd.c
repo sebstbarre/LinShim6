@@ -929,8 +929,6 @@ failure:
 
 void init_reap_ctx(struct reap_ctx* rctx)
 {
-	int ans;
-	
 	/*The only case where we do not use reap_set_state, because
 	  this is the initialization, not a transition*/
 	rctx->state=REAP_OPERATIONAL;
@@ -949,15 +947,14 @@ void init_reap_ctx(struct reap_ctx* rctx)
 
 	rctx->path_array=NULL;
 
-	ans=fill_path_array(rctx);
-	if (ans<0) return;
-
 	/*Init the timers*/
 	init_timer(&rctx->probe_timer);
 	init_timer(&rctx->send_timer);
 	init_timer(&rctx->end_explore_timer);
 
 	rctx->ready=1;
+
+	fill_path_array(rctx);	
 	return;
 }
 
