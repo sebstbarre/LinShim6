@@ -366,7 +366,7 @@ void randomize_array(struct shim6_path* path_array, int size)
 #endif
 
 /**
- * Returns 1 if both the local and remote adress in @path is
+ * Returns 1 if both the local and remote adress in @path are
  * distinct from resp. the local and remote preferred locator in @ctx.
  * else returns 0
  */
@@ -377,6 +377,20 @@ static int inline is_distinct(struct shim6_path *path,struct shim6_ctx* ctx)
 	    ipv6_addr_equal(&path->remote,
 			    &ctx->lp_peer)) return 0;
 	else return 1;
+}
+
+/**
+ * Returns 1 if both the local and remote adress in @path are
+ * equal to resp. the local and remote preferred locator in @ctx.
+ * else returns 0
+ */
+static int inline is_samepair(struct shim6_path *path,struct shim6_ctx* ctx)
+{
+	if (ipv6_addr_equal(&path->local,
+			    &ctx->lp_local) &&
+	    ipv6_addr_equal(&path->remote,
+			    &ctx->lp_peer)) return 1;
+	else return 0;
 }
 
 /* Initialize relevant fields in rctx to start a new burst of probes.
@@ -422,13 +436,36 @@ static void inline init_probe_sending(struct reap_ctx* rctx)
 		}
 
 		if (sep_index==-1 ||  /*All paths distinct*/
-		    sep_index==0) /*No path  is distinct*/
-			randomize_array(rctx->path_array,rctx->path_array_size);
+		    sep_index==0) { /*No path  is distinct*/
+			/*Before to randomize the set, we
+			  ensure that the current address pair is put last*/
+			for (i=0;i<rctx->path_array_size-1;i++) {
+				if (is_samepair(&rctx->path_array[i],ctx)) {
+					swap_path_arrays(&rctx->path_array[i],
+							 &rctx->path_array
+							 [rctx->path_array_size
+							  -1]);
+				}
+			}
+
+			randomize_array(rctx->path_array,
+					rctx->path_array_size-1);
+		}
 		else {
 			/*Separately randomize the two sets*/
 			randomize_array(rctx->path_array,sep_index);
+			/*Before to randomize the second set, we
+			  ensure that the current address pair is put last*/
+			for (i=sep_index;i<rctx->path_array_size-1;i++) {
+				if (is_samepair(&rctx->path_array[i],ctx)) {
+					swap_path_arrays(&rctx->path_array[i],
+							 &rctx->path_array
+							 [rctx->path_array_size
+							  -1]);
+				}
+			}
 			randomize_array(&rctx->path_array[sep_index],
-					rctx->path_array_size-sep_index);
+					rctx->path_array_size-sep_index-1);
 		}
 		rctx->cur_path_index=0;
 	}
