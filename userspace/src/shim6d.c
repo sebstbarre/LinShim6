@@ -2198,6 +2198,7 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	shim6_loc_l* locator;
 	int i,found=0;
 	int list_cnt;
+	int broken=0;
 
 	valid_method=get_valid_method(addr,ifidx,&hs);
 
@@ -2226,10 +2227,11 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 			else if (ipv6_addr_equal(addr,&locator->addr) &&
 				 (locator->ifidx==ifidx || valid_method==-1)) {
 				found=1;
+				broken=locator->broken;
 				if (locator->refcnt!=0) {
 					PDEBUG("Address %s marked as broken\n",
 					       addrtostr(addr));
-					ASSERT(!locator->broken);
+					ASSERT(!broken);
 					locator->broken=1;
 					ls_it->size_not_broken--;
 					ls_it->gen_number=glob_gen_nb++;
@@ -2259,7 +2261,9 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	}
 	
 	ls->size--;
-	ls->size_not_broken--;
+	/*If the deleted locator was broken, the size_not_broken field has 
+	  already been decremented when tagging the locator as broken*/
+	if (!broken) ls->size_not_broken--;
 	ls->gen_number=glob_gen_nb++;
 	
  	/*If the modified locator set is an HBA set, then
