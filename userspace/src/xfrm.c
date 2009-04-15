@@ -678,7 +678,11 @@ int xfrm_update_shim6_ctx(struct shim6_ctx* ctx,
 		translate=0;
 	else {
 		translate=SHIM6_DATA_TRANSLATE;
-		PDEBUG("translation enabled");
+		PDEBUG("translation enabled\n");
+		PDEBUG("  ulid_local:%s\n",addrtostr(&ctx->ulid_local.addr));
+		PDEBUG("  ulid_peer:%s\n",addrtostr(&ctx->ulid_peer));
+		PDEBUG("  new_lp_local:%s\n",addrtostr(new_loc_l));
+		PDEBUG("  ulid_local:%s\n",addrtostr(new_loc_p));
 	}
 
 	/*outbound */
