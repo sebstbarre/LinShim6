@@ -2184,7 +2184,7 @@ static int new_addr(struct in6_addr* addr, int ifidx)
 
 static int del_addr(struct in6_addr* addr, int ifidx)
 {
-	struct locset* ls;
+	struct locset *ls, *ls_it;
 	struct hba_set* hs;
 	uint8_t valid_method=0;
 	shim6_loc_l* locator;
@@ -2202,11 +2202,11 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	ASSERT(ls);
 
 	/*Looking for the correspondent entry. Once found, every entry
-	  after the one we want to delete is moved one slot left.*/
-	
-	for (locator=ls->lsetp,i=0; i<ls->size; locator++,i++) {
+	 * after the one we want to delete is moved one slot left.*/
+	for (locator=ls_it->lsetp,i=0; i<ls_it->size; locator++,i++) {
 		if (found) {
-			ipv6_addr_copy(&(locator-1)->addr,&locator->addr);
+			ipv6_addr_copy(&(locator-1)->addr,
+				       &locator->addr);
 		}
 		else if (ipv6_addr_equal(addr,&locator->addr) &&
 			 locator->ifidx==ifidx) {
@@ -2226,6 +2226,7 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 				       addrtostr(addr));			
 		}
 	}
+	ls=ls_it;
 
 	/*It is possible that the locator is not found if we just 
 	  changed the adress from one iface to another (mip6d does that)*/
@@ -2970,20 +2971,22 @@ int get_loc_locs_array(struct shim6_ctx* ctx, int newest,
 			}
 		}
 	}
+	else if (ctx->ls_localp->single) {
+		/*locset of size one, no verif needed.
+		  Although no option is sent in that case, we can 
+		  reach this instruction when called shim6c does a
+		  'cat' on a context with one local locator. */
+		ipv6_addr_copy(addr_array, &ls->lsetp->addr);
+		if (verif_method) verif_method[0]=0;
+	}
 	else {
-		/*Only the locators of that set may be used (either pure
-		  HBA, or specifically alloc'ed locset due to unsecured
-		  lulid (case of ctx->ls_localp->single)*/
+		/*Only the locators of that set may be used (pure HBA)*/
 		for (i=0,j=0;i<ls->size;i++,j++) {
 			shim6_loc_l* loc = ls->lsetp+i;
 			if (loc->broken) {j--;continue;}
 			ipv6_addr_copy(&addr_array[j], &loc->addr);
-			if (verif_method) {
-				/*In case of single loc locset,
-				  no locset option must be sent*/
-				ASSERT(!ctx->ls_localp->single);
+			if (verif_method)
 				verif_method[j]=SHIM6_HBA;
-			}
 		}
 	}
 	return 0;

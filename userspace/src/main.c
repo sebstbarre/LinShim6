@@ -22,7 +22,6 @@
 #include "info_server.h"
 #include "xfrm.h"
 
-
 #include <signal.h>
 #include <unistd.h>
 #include <linux/shim6.h>
