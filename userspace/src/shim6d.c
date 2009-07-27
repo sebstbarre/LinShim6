@@ -2571,6 +2571,14 @@ int get_loc_locs_array(struct shim6_ctx* ctx, int newest,
 			}
 		}
 	}
+	else if (ctx->ls_localp->single) {
+		/*locset of size one, no verif needed.
+		  Although no option is sent in that case, we can 
+		  reach this instruction when called shim6c does a
+		  'cat' on a context with one local locator. */
+		ipv6_addr_copy(&addr_array[i], &ls->lsetp->addr);
+		if (verif_method) verif_method[0]=0;
+	}
 	else {
 		/*Only the locators of that set may be used (either pure
 		  HBA, or specifically alloc'ed locset due to unsecured
@@ -2578,12 +2586,8 @@ int get_loc_locs_array(struct shim6_ctx* ctx, int newest,
 		for (i=0;i<ls->size;i++) {
 			shim6_loc_l* loc = ls->lsetp+i;
 			ipv6_addr_copy(&addr_array[i], &loc->addr);
-			if (verif_method) {
-				/*In case of single loc locset,
-				  no locset option must be sent*/
-				ASSERT(!ctx->ls_localp->single);
+			if (verif_method)
 				verif_method[i]=SHIM6_HBA;
-			}
 		}
 	}
 	return 0;
