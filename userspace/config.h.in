@@ -21,6 +21,9 @@
    you don't. */
 #undef HAVE_DECL_XFRM_MODE_SHIM6
 
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
 /* Define to 1 if you have the <idips/client.h> header file. */
 #undef HAVE_IDIPS_CLIENT_H
 
@@ -90,11 +93,21 @@
 /* enable logging of i2 reception times inside /etc/shim6/i2.log */
 #undef LOG_RCV_I2_TIME
 
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
 /* Disable MIP6-related debugging */
 #undef MIP6_NDEBUG
 
 /* disable cga check */
 #undef NO_CGA_CHECK
+
+/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+#undef NO_MINUS_C_MINUS_O
+
+/* Name of package */
+#undef PACKAGE
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
@@ -141,6 +154,9 @@
 # undef __EXTENSIONS__
 #endif
 
+
+/* Version number of package */
+#undef VERSION
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
