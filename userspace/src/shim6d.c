@@ -2186,7 +2186,7 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 {
 	struct locset *ls, *ls_it;
 	struct hba_set* hs;
-	uint8_t valid_method=0;
+	char valid_method=0;
 	shim6_loc_l* locator;
 	int i,found=0;
 
