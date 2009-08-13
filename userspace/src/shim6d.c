@@ -2210,10 +2210,8 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	 * account the ifidx. */
 	list_for_each_entry_all(ls_it,&ls->list,list,list_cnt) {
 		for (locator=ls_it->lsetp,i=0; i<ls_it->size; locator++,i++) {
-			if (found) {
-				ipv6_addr_copy(&(locator-1)->addr,
-					       &locator->addr);
-			}
+			if (found)
+				memcpy(locator-1,locator,sizeof(*locator));
 			else if (ipv6_addr_equal(addr,&locator->addr) &&
 				 (locator->ifidx==ifidx || valid_method==-1)) {
 				found=1;
