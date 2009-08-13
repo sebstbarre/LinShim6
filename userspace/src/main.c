@@ -22,7 +22,6 @@
 #include "info_server.h"
 #include "xfrm.h"
 
-
 #include <signal.h>
 #include <unistd.h>
 #include <linux/shim6.h>
@@ -32,6 +31,10 @@
 #include <cryptoshim6/cga.h>
 #include <utils/misc.h>
 #include <utils/debug.h>
+
+#ifdef DEBUGGING
+#include <execinfo.h>
+#endif
 
 
 /*===============*/
@@ -63,9 +66,32 @@ static void sigterm_handler(int sig)
 	exit(EXIT_SUCCESS);
 }
 
+/*Prints a backtrace and exits*/
 static void sigsegv_handler(int sig)
 {
+	int nptrs,i;
+	void *buffer[100];
+	char **strings;
 	syslog(LOG_ERR, "segmentation fault\n");
+	
+	/*----- Printing backtrace*/
+#ifdef DEBUGGING
+	nptrs = backtrace(buffer, sizeof(buffer));
+	syslog(LOG_ERR, "backtrace() returned %d addresses\n", nptrs);
+	
+	strings = backtrace_symbols(buffer, nptrs);
+	if (strings == NULL) {
+		perror("backtrace_symbols");
+		exit(EXIT_FAILURE);
+	}
+	
+	for (i = 0; i < nptrs; i++)
+		syslog(LOG_ERR, "%s\n", strings[i]);
+	
+	free(strings);
+#endif
+	/*----- end of backtrace*/
+		
 	unlink(LOCALSTATE_DIR "/run/shim6d.pid");
 	shim6_del_all_ctx();
 	/*Stopping the info server*/
