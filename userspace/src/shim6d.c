@@ -2188,7 +2188,7 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	struct hba_set* hs;
 	char valid_method=0;
 	shim6_loc_l* locator;
-	int i,found=0;
+	int i,list_cnt,found=0;
 
 	valid_method=get_valid_method(addr,ifidx,&hs);
 
@@ -2202,29 +2202,36 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 	ASSERT(ls);
 
 	/*Looking for the correspondent entry. Once found, every entry
-	 * after the one we want to delete is moved one slot left.*/
-	for (locator=ls_it->lsetp,i=0; i<ls_it->size; locator++,i++) {
-		if (found) {
-			ipv6_addr_copy(&(locator-1)->addr,
-				       &locator->addr);
-		}
-		else if (ipv6_addr_equal(addr,&locator->addr) &&
-			 locator->ifidx==ifidx) {
-			found=1;
-			if (locator->refcnt!=0) {
-				PDEBUG("Address %s marked as broken\n",
-				       addrtostr(addr));
-				ASSERT(!locator->broken);
-				locator->broken=1;
-				ls->size_not_broken--;
-				ls->gen_number=glob_gen_nb++;
-				return 0;
+	 * after the one we want to delete is moved one slot left.
+	 * Normally (valid_method !=-1) we only check the ls locator set.
+	 * But if get_valid_method failed, which happens if the interface
+	 * has been removed, we check all the lists, and do not take into
+	 * account the ifidx. */
+	list_for_each_entry_all(ls_it,&ls->list,list,list_cnt) {
+		for (locator=ls_it->lsetp,i=0; i<ls_it->size; locator++,i++) {
+			if (found) {
+				ipv6_addr_copy(&(locator-1)->addr,
+					       &locator->addr);
 			}
-			else 
-				PDEBUG("Removing address %s from local "
-				       "locator structure\n",
-				       addrtostr(addr));			
+			else if (ipv6_addr_equal(addr,&locator->addr) &&
+				 (locator->ifidx==ifidx || valid_method==-1)) {
+				found=1;
+				if (locator->refcnt!=0) {
+					PDEBUG("Address %s marked as broken\n",
+					       addrtostr(addr));
+					ASSERT(!locator->broken);
+					locator->broken=1;
+					ls->size_not_broken--;
+					ls->gen_number=glob_gen_nb++;
+					return 0;
+				}
+				else 
+					PDEBUG("Removing address %s from local "
+					       "locator structure\n",
+					       addrtostr(addr));
+			}
 		}
+		if (valid_method!=-1 || found) break;
 	}
 	ls=ls_it;
 
