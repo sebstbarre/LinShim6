@@ -2223,8 +2223,8 @@ static int del_addr(struct in6_addr* addr, int ifidx)
 					       addrtostr(addr));
 					ASSERT(!broken);
 					locator->broken=1;
-					ls->size_not_broken--;
-					ls->gen_number=glob_gen_nb++;
+					ls_it->size_not_broken--;
+					ls_it->gen_number=glob_gen_nb++;
 					return 0;
 				}
 				else 
