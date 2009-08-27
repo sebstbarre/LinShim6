@@ -7,8 +7,9 @@
 
 instr=$1
 cgaconfdir=$2
+top_builddir=$3
 
-cgatool=../cgatool/cgatool
+cgatool=$top_builddir/cgatool/cgatool
 
 case $instr in
     "cgadconf")	
@@ -72,13 +73,13 @@ EOF
 	mkdir -p $cgaconfdir/cgad/cga
 	#if no key is there, create both the key and the der
         if ! [ -f $cgaconfdir/cgad/cga/default_key.pem ]; then
-            cgatool -g -k $cgaconfdir/cgad/cga/default_key.pem -R 1024 \
+            $cgatool -g -k $cgaconfdir/cgad/cga/default_key.pem -R 1024 \
                 -o $cgaconfdir/cgad/cga/default_CGAPDS.der -p fe80:: -s 1
         else
 	    #If the key is there but not the der, just regenerate the der,
 	    #using the existing key.
             if ! [ -f $cgaconfdir/cgad/cga/default_CGAPDS.der ]; then
-                cgatool -g -o $cgaconfdir/cgad/cga/default_CGAPDS.der \
+                $cgatool -g -o $cgaconfdir/cgad/cga/default_CGAPDS.der \
                     -k $cgaconfdir/cgad/cga/default_key.pem -p fe80:: -s 1 
             fi  
         fi
