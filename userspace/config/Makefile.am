@@ -23,7 +23,7 @@ clean-local:
 
 if DROPCONFIG
 install-data-hook:
-	$(gen_configs) "install" $(cgaconfdir)
+	$(gen_configs) "install" $(cgaconfdir) $(top_builddir)
 endif
 
 uninstall-hook:

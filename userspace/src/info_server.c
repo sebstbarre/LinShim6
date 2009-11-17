@@ -128,9 +128,19 @@ static void* networkpty(void* arg)
 		if (FD_ISSET(pty_master,&fdset)) {
 			nbread=read(pty_master,buf,BUF_SIZE);
 			if (nbread>0 && write(connfd,buf,nbread)!=nbread) {
-				syslog(LOG_ERR,"%s:write error in socket",
-				       __FUNCTION__);
-				exit(EXIT_FAILURE);
+				if (errno == EAGAIN || errno == ECONNRESET) {
+					syslog(LOG_ERR,"%s: data could not be "
+					       "written or socket has been "
+					       "closed",
+					       __FUNCTION__);
+					pthread_exit(NULL);
+				}
+				else {
+					syslog(LOG_ERR,"%s:write error in "
+					       "socket",
+					       __FUNCTION__);
+					exit(EXIT_FAILURE);
+				}
 			}
 		}
 
